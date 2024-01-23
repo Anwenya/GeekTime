@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	ErrDuplicateEmail = errors.New("该邮箱已被注册")
+	ErrDuplicateEmail = errors.New("邮箱重复")
 	ErrRecordNotFound = gorm.ErrRecordNotFound
 )
 
@@ -27,7 +27,7 @@ func NewUserDAO(db *gorm.DB) *UserDAO {
 func (userDao *UserDAO) Insert(ctx context.Context, user User) error {
 	timestamp := time.Now().UnixMilli()
 	user.CreateTime, user.UpdateTime = timestamp, timestamp
-	err := userDao.db.WithContext(ctx).Create(&userDao).Error
+	err := userDao.db.WithContext(ctx).Create(&user).Error
 	//
 	if me, ok := err.(*mysql.MySQLError); ok {
 		if me.Number == 1062 {
@@ -44,12 +44,15 @@ func (userDao *UserDAO) FindUserByEmail(ctx context.Context, email string) (User
 }
 
 func (userDao *UserDAO) UpdateUserById(ctx context.Context, user User) error {
+	// 使用map会更新零值
+	// 使用struct不会更新零值
+	// https://gorm.io/docs/update.html
 	return userDao.db.WithContext(ctx).Model(&user).Where("id = ?", user.Id).
 		Updates(map[string]any{
-			"updatetime": time.Now().UnixMilli(),
-			"nickname":   user.Nickname,
-			"birthday":   user.Birthday,
-			"bio":        user.Bio,
+			"update_time": time.Now().UnixMilli(),
+			"nickname":    user.Nickname,
+			"birthday":    user.Birthday,
+			"bio":         user.Bio,
 		}).Error
 }
 
@@ -68,4 +71,8 @@ type User struct {
 	Bio        string `gorm:"type=varchar(4096)"`
 	CreateTime int64
 	UpdateTime int64
+}
+
+func (User) TableName() string {
+	return "users"
 }
