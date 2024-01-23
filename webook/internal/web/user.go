@@ -132,6 +132,11 @@ func (userHandler *UserHandler) Edit(ctx *gin.Context) {
 	sess := sessions.Default(ctx)
 	uid := sess.Get("uid").(int64)
 
+	if len(req.Bio) > 4096 || len(req.Nickname) > 128 {
+		ctx.String(http.StatusOK, "非法请求")
+		return
+	}
+
 	birthday, err := time.Parse(time.DateOnly, req.Birthday)
 	if err != nil {
 		ctx.String(http.StatusOK, "非法生日格式")
