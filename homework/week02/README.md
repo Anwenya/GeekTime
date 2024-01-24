@@ -1,6 +1,8 @@
 # 注册
-![注册](./singup.png)
-![注册](./singup-success.png)
+
+![注册](./signup.png)
+
+![注册](./signup-success.png)
 
 # 登录
 ![登录](./login.png)
