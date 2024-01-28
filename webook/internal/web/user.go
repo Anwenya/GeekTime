@@ -1,6 +1,8 @@
 package web
 
 import (
+	"github.com/Anwenya/GeekTime/webook/util"
+	"log"
 	"net/http"
 	"time"
 
@@ -17,13 +19,15 @@ const (
 )
 
 type UserHandler struct {
+	config         *util.Config
 	emailRexExp    *regexp.Regexp
 	passwordRexExp *regexp.Regexp
 	userService    *service.UserService
 }
 
-func NewUserHandler(userService *service.UserService) *UserHandler {
+func NewUserHandler(userService *service.UserService, config *util.Config) *UserHandler {
 	return &UserHandler{
+		config:         config,
 		emailRexExp:    regexp.MustCompile(emailRegexPattern, regexp.None),
 		passwordRexExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
 		userService:    userService,
@@ -104,10 +108,11 @@ func (userHandler *UserHandler) Login(ctx *gin.Context) {
 		sess := sessions.Default(ctx)
 		sess.Set("uid", domainUser.Id)
 		sess.Options(sessions.Options{
-			MaxAge: 600,
+			MaxAge: int(userHandler.config.SessionDuration),
 		})
 		err = sess.Save()
 		if err != nil {
+			log.Printf("%v", err)
 			ctx.String(http.StatusOK, "系统错误")
 			return
 		}

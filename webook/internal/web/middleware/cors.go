@@ -1,17 +1,16 @@
 package middleware
 
 import (
-	"strings"
-	"time"
-
+	"github.com/Anwenya/GeekTime/webook/util"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"strings"
 )
 
 type CorsMiddlewareBuilder struct {
 }
 
-func (corsMiddlewareBuilder *CorsMiddlewareBuilder) Cors() gin.HandlerFunc {
+func (corsMiddlewareBuilder *CorsMiddlewareBuilder) Cors(config *util.Config) gin.HandlerFunc {
 
 	return cors.New(cors.Config{
 		AllowCredentials: true,
@@ -22,6 +21,6 @@ func (corsMiddlewareBuilder *CorsMiddlewareBuilder) Cors() gin.HandlerFunc {
 			}
 			return strings.Contains(origin, "your_company.com")
 		},
-		MaxAge: 12 * time.Hour,
+		MaxAge: config.CorsDuration,
 	})
 }
