@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/Anwenya/GeekTime/webook/util"
 
 	"github.com/Anwenya/GeekTime/webook/internal/domain"
 	"github.com/Anwenya/GeekTime/webook/internal/repository"
-	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -25,11 +25,11 @@ func NewUserService(userRepository *repository.UserRepository) *UserService {
 }
 
 func (userService *UserService) Signup(ctx context.Context, domainUser domain.User) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(domainUser.Password), bcrypt.DefaultCost)
+	hash, err := util.HashPassword(domainUser.Password)
 	if err != nil {
 		return err
 	}
-	domainUser.Password = string(hash)
+	domainUser.Password = hash
 	return userService.userRepository.Create(ctx, domainUser)
 }
 
@@ -41,7 +41,7 @@ func (userService *UserService) Login(ctx context.Context, email string, passwor
 	if err != nil {
 		return domain.User{}, err
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(domainUser.Password), []byte(password))
+	err = util.CheckPassword(password, domainUser.Password)
 	if err != nil {
 		return domain.User{}, ErrInvalidUserOrPassword
 	}
