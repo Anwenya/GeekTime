@@ -20,8 +20,8 @@ func (sessionMiddlewareBuilder *SessionMiddlewareBuilder) Session(config *util.C
 		"tcp",
 		config.RedisAddress,
 		"",
-		config.CookieKey1,
-		config.CookieKey2,
+		config.SessionSecretKey1,
+		config.SessionSecretKey2,
 	)
 	if err != nil {
 		log.Fatal(err)
