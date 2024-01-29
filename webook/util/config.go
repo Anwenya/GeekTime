@@ -22,10 +22,10 @@ type Config struct {
 	CorsDuration         time.Duration `mapstructure:"CORS_DURATION"`
 	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
 	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
-	JWTKey1              []byte        `mapstructure:"JWT_KEY1"`
-	JWTKey2              []byte        `mapstructure:"JWT_KEY2"`
-	CookieKey1           []byte        `mapstructure:"COOKIE_KEY1"`
-	CookieKey2           []byte        `mapstructure:"COOKIE_KEY2"`
+	TokenKey             string        `mapstructure:"REFRESH_TOKEN_DURATION"`
+	TokenSecretKey       []byte        `mapstructure:"TOKEN_SECRET_KEY"`
+	SessionSecretKey1    []byte        `mapstructure:"SESSION_SECRET_KEY1"`
+	SessionSecretKey2    []byte        `mapstructure:"SESSION_SECRET_KEY2"`
 }
 
 func StringToByteSliceHookFunc() mapstructure.DecodeHookFunc {
