@@ -77,7 +77,7 @@ func initWebServer(config *util.Config) *gin.Engine {
 	server.Use(
 		cors.Cors(config),
 		session.Session(config),
-		login.CheckLogin(config),
+		login.CheckLogin(config, nil),
 	)
 
 	return server
