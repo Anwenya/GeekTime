@@ -1,6 +1,7 @@
 package web
 
 import (
+	"github.com/Anwenya/GeekTime/webook/token"
 	"github.com/Anwenya/GeekTime/webook/util"
 	"log"
 	"net/http"
@@ -20,6 +21,7 @@ const (
 
 type UserHandler struct {
 	config         *util.Config
+	tokenMaker     token.Maker
 	emailRexExp    *regexp.Regexp
 	passwordRexExp *regexp.Regexp
 	userService    *service.UserService
@@ -38,6 +40,7 @@ func (userHandler *UserHandler) RegisterRoutes(server *gin.Engine) {
 	userGroup := server.Group("/users")
 	userGroup.POST("/signup", userHandler.SignUp)
 	userGroup.POST("/login", userHandler.Login)
+	userGroup.POST("/login/token", userHandler.LoginWithToken)
 	userGroup.POST("/edit", userHandler.Edit)
 	userGroup.GET("/profile", userHandler.Profile)
 }
@@ -124,6 +127,37 @@ func (userHandler *UserHandler) Login(ctx *gin.Context) {
 	}
 }
 
+func (userHandler *UserHandler) LoginWithToken(ctx *gin.Context) {
+	type Req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	domainUser, err := userHandler.userService.Login(ctx, req.Email, req.Password)
+	switch err {
+	case nil:
+		tokenString, _, err := userHandler.tokenMaker.CreateToken(
+			domainUser.Id,
+			domainUser.Email,
+			userHandler.config.AccessTokenDuration,
+		)
+		if err != nil {
+			log.Printf("创建token失败:%v", err)
+			ctx.String(http.StatusOK, "系统错误")
+			return
+		}
+		ctx.Header(userHandler.config.TokenKey, tokenString)
+		ctx.String(http.StatusOK, "登录成功")
+	case service.ErrInvalidUserOrPassword:
+		ctx.String(http.StatusOK, "用户名或者密码不对")
+	default:
+		ctx.String(http.StatusOK, "系统错误")
+	}
+}
+
 func (userHandler *UserHandler) Edit(ctx *gin.Context) {
 	type Req struct {
 		Nickname string `json:"nickname"`
@@ -134,9 +168,7 @@ func (userHandler *UserHandler) Edit(ctx *gin.Context) {
 	if err := ctx.Bind(&req); err != nil {
 		return
 	}
-	sess := sessions.Default(ctx)
-	uid := sess.Get("uid").(int64)
-
+	uid := ctx.MustGet("uid").(int64)
 	if len(req.Bio) > 4096 || len(req.Nickname) > 128 {
 		ctx.String(http.StatusOK, "非法请求")
 		return
@@ -161,9 +193,7 @@ func (userHandler *UserHandler) Edit(ctx *gin.Context) {
 }
 
 func (userHandler *UserHandler) Profile(ctx *gin.Context) {
-
-	sess := sessions.Default(ctx)
-	uid := sess.Get("uid").(int64)
+	uid := ctx.MustGet("uid").(int64)
 	domainUser, err := userHandler.userService.FindById(ctx, uid)
 	if err != nil {
 		ctx.String(http.StatusOK, "系统异常")
