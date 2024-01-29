@@ -30,6 +30,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("启动失败:%v", err)
 	}
+	log.Printf("启动成功:%v", config.HTTPServerAddress)
 }
 
 func initUserHandler(db *gorm.DB, server *gin.Engine, config *util.Config) {
@@ -46,10 +47,11 @@ func initDB(config *util.Config) *gorm.DB {
 			Logger: logger.Default.LogMode(logger.Info),
 		})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("数据库连接失败:%v", err)
 	}
 
 	mysqlMigration(config)
+	log.Println("数据库连接成功")
 	return db
 }
 
@@ -59,14 +61,14 @@ func mysqlMigration(config *util.Config) {
 		config.MigrationDBUrl,
 	)
 	if err != nil {
-		log.Printf("cannot create new migrate instance:%v", err)
+		log.Fatalf("数据库迁移失败:%v", err)
 	}
 
 	if err = migration.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Printf("failed to run migrate up:%v", err)
+		log.Fatalf("数据库迁移失败:%v", err)
 	}
 
-	log.Printf("db migration successfully")
+	log.Println("数据库迁移成功")
 }
 
 func initWebServer(config *util.Config) *gin.Engine {
