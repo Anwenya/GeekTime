@@ -1,11 +1,8 @@
 package util
 
 import (
-	"fmt"
 	"github.com/mitchellh/mapstructure"
-	"os"
 	"reflect"
-	"runtime"
 	"time"
 
 	"github.com/spf13/viper"
@@ -23,7 +20,7 @@ type Config struct {
 	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
 	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
 	TokenKey             string        `mapstructure:"REFRESH_TOKEN_DURATION"`
-	TokenSecretKey       []byte        `mapstructure:"TOKEN_SECRET_KEY"`
+	TokenSecretKey       string        `mapstructure:"TOKEN_SECRET_KEY"`
 	SessionSecretKey1    []byte        `mapstructure:"SESSION_SECRET_KEY1"`
 	SessionSecretKey2    []byte        `mapstructure:"SESSION_SECRET_KEY2"`
 }
@@ -66,10 +63,5 @@ func LoadConfig(path string) (config *Config, err error) {
 	}
 
 	err = viper.Unmarshal(&config, optDecode)
-
-	if runtime.GOOS == "windows" && err == nil {
-		path, _ := os.Getwd()
-		config.MigrationSourceUrl = fmt.Sprintf("file:%s\\db\\migration\\", path)
-	}
 	return
 }
