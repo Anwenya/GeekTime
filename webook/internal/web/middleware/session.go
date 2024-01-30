@@ -24,7 +24,7 @@ func (sessionMiddlewareBuilder *SessionMiddlewareBuilder) Session(config *util.C
 		config.SessionSecretKey2,
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("session中间件初始化失败%v", err)
 	}
 	return sessions.Sessions("ssid", store)
 }

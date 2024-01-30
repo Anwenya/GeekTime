@@ -54,11 +54,13 @@ func (userHandler *UserHandler) SignUp(ctx *gin.Context) {
 
 	var req SignUpReq
 	if err := ctx.Bind(&req); err != nil {
+		log.Printf("注册失败:%v", err)
 		return
 	}
 
 	isEmail, err := userHandler.emailRexExp.MatchString(req.Email)
 	if err != nil {
+		log.Printf("注册失败:%v", err)
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
@@ -74,6 +76,7 @@ func (userHandler *UserHandler) SignUp(ctx *gin.Context) {
 
 	isPassword, err := userHandler.passwordRexExp.MatchString(req.Password)
 	if err != nil {
+		log.Printf("注册失败:%v", err)
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
@@ -90,8 +93,10 @@ func (userHandler *UserHandler) SignUp(ctx *gin.Context) {
 	case nil:
 		ctx.String(http.StatusOK, "注册成功")
 	case service.ErrDuplicateEmail:
+		log.Printf("注册失败:%v", err)
 		ctx.String(http.StatusOK, "该邮箱已被注册")
 	default:
+		log.Printf("注册失败:%v", err)
 		ctx.String(http.StatusOK, "系统错误")
 	}
 }
@@ -103,6 +108,7 @@ func (userHandler *UserHandler) Login(ctx *gin.Context) {
 	}
 	var req Req
 	if err := ctx.Bind(&req); err != nil {
+		log.Printf("session登录失败:%v", err)
 		return
 	}
 	domainUser, err := userHandler.userService.Login(ctx, req.Email, req.Password)
@@ -115,14 +121,50 @@ func (userHandler *UserHandler) Login(ctx *gin.Context) {
 		})
 		err = sess.Save()
 		if err != nil {
-			log.Printf("%v", err)
+			log.Printf("创建session失败:%v", err)
 			ctx.String(http.StatusOK, "系统错误")
 			return
 		}
 		ctx.String(http.StatusOK, "登录成功")
 	case service.ErrInvalidUserOrPassword:
+		log.Printf("session登录失败:%v", err)
 		ctx.String(http.StatusOK, "用户名或者密码不对")
 	default:
+		log.Printf("session登录失败:%v", err)
+		ctx.String(http.StatusOK, "系统错误")
+	}
+}
+
+func (userHandler *UserHandler) LoginWithToken(ctx *gin.Context) {
+	type Req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		log.Printf("token登录失败:%v", err)
+		return
+	}
+	domainUser, err := userHandler.userService.Login(ctx, req.Email, req.Password)
+	switch err {
+	case nil:
+		tokenString, _, err := userHandler.tokenMaker.CreateToken(
+			domainUser.Id,
+			domainUser.Email,
+			userHandler.config.AccessTokenDuration,
+		)
+		if err != nil {
+			log.Printf("创建token失败:%v", err)
+			ctx.String(http.StatusOK, "系统错误")
+			return
+		}
+		ctx.Header(userHandler.config.TokenKey, tokenString)
+		ctx.String(http.StatusOK, "登录成功")
+	case service.ErrInvalidUserOrPassword:
+		log.Printf("token登录失败:%v", err)
+		ctx.String(http.StatusOK, "用户名或者密码不对")
+	default:
+		log.Printf("token登录失败:%v", err)
 		ctx.String(http.StatusOK, "系统错误")
 	}
 }
@@ -166,16 +208,19 @@ func (userHandler *UserHandler) Edit(ctx *gin.Context) {
 	}
 	var req Req
 	if err := ctx.Bind(&req); err != nil {
+		log.Printf("编辑用户信息失败:%v", err)
 		return
 	}
 	uid := ctx.MustGet("uid").(int64)
 	if len(req.Bio) > 4096 || len(req.Nickname) > 128 {
+		log.Printf("编辑用户信息失败:%v", "非法格式")
 		ctx.String(http.StatusOK, "非法请求")
 		return
 	}
 
 	birthday, err := time.Parse(time.DateOnly, req.Birthday)
 	if err != nil {
+		log.Printf("编辑用户信息失败:%v", err)
 		ctx.String(http.StatusOK, "非法生日格式")
 		return
 	}
@@ -186,6 +231,7 @@ func (userHandler *UserHandler) Edit(ctx *gin.Context) {
 		Bio:      req.Bio,
 	})
 	if err != nil {
+		log.Printf("编辑用户信息失败:%v", err)
 		ctx.String(http.StatusOK, "系统异常")
 		return
 	}
@@ -196,6 +242,7 @@ func (userHandler *UserHandler) Profile(ctx *gin.Context) {
 	uid := ctx.MustGet("uid").(int64)
 	domainUser, err := userHandler.userService.FindById(ctx, uid)
 	if err != nil {
+		log.Printf("请求用户信息失败:%v", err)
 		ctx.String(http.StatusOK, "系统异常")
 		return
 	}
