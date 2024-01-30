@@ -45,8 +45,14 @@ func checkLoginWithSession(ctx *gin.Context, config *util.Config) bool {
 		log.Printf("session认证失败:%v", "未解析到uid")
 		return false
 	}
+	// UA判断
+	ua := sess.Get("ua")
+	if uaString, ok := ua.(string); ok && uaString != ctx.GetHeader("User-Agent") {
+		log.Printf("session认证警告:%v", "User-Agent不一致")
+	}
+
 	// 因为是用redis存储的
-	// 能解析到uid说明该session未过期
+	// 能解析到数据说明该session未过期
 	now := time.Now()
 	// 尝试刷新session
 	const updateTimeKey = "updateTime"
@@ -55,6 +61,7 @@ func checkLoginWithSession(ctx *gin.Context, config *util.Config) bool {
 	if !ok || now.Sub(lastUpdateTime) >= time.Minute {
 		sess.Set(updateTimeKey, now)
 		sess.Set("uid", userId)
+		sess.Set("ua", ua)
 		err := sess.Save()
 		if err != nil {
 			log.Printf("刷新session失败:%v", err)
@@ -86,9 +93,20 @@ func checkLoginWithToken(ctx *gin.Context, config *util.Config, tokenMaker token
 		return false
 	}
 	// 到这里已经是校验成功了
+
+	// UA判断
+	if payload.UserAgent != ctx.GetHeader("User-Agent") {
+		log.Printf("token认证警告:%v", "User-Agent不一致")
+	}
+
 	// 尝试刷新token
 	if payload.ExpiresAt.Sub(time.Now()) < time.Minute {
-		newToken, _, err := tokenMaker.CreateToken(payload.Uid, payload.Username, config.AccessTokenDuration)
+		newToken, _, err := tokenMaker.CreateToken(
+			payload.Uid,
+			payload.Username,
+			config.AccessTokenDuration,
+			payload.UserAgent,
+		)
 		if err != nil {
 			log.Printf("刷新token失败:%v", err)
 		}

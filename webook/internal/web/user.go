@@ -27,9 +27,10 @@ type UserHandler struct {
 	userService    *service.UserService
 }
 
-func NewUserHandler(userService *service.UserService, config *util.Config) *UserHandler {
+func NewUserHandler(userService *service.UserService, config *util.Config, tokenMaker token.Maker) *UserHandler {
 	return &UserHandler{
 		config:         config,
+		tokenMaker:     tokenMaker,
 		emailRexExp:    regexp.MustCompile(emailRegexPattern, regexp.None),
 		passwordRexExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
 		userService:    userService,
@@ -116,6 +117,7 @@ func (userHandler *UserHandler) Login(ctx *gin.Context) {
 	case nil:
 		sess := sessions.Default(ctx)
 		sess.Set("uid", domainUser.Id)
+		sess.Set("ua", ctx.GetHeader("User-Agent"))
 		sess.Options(sessions.Options{
 			MaxAge: int(userHandler.config.SessionDuration),
 		})
@@ -152,6 +154,7 @@ func (userHandler *UserHandler) LoginWithToken(ctx *gin.Context) {
 			domainUser.Id,
 			domainUser.Email,
 			userHandler.config.AccessTokenDuration,
+			ctx.GetHeader("User-Agent"),
 		)
 		if err != nil {
 			log.Printf("创建token失败:%v", err)
@@ -165,37 +168,6 @@ func (userHandler *UserHandler) LoginWithToken(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "用户名或者密码不对")
 	default:
 		log.Printf("token登录失败:%v", err)
-		ctx.String(http.StatusOK, "系统错误")
-	}
-}
-
-func (userHandler *UserHandler) LoginWithToken(ctx *gin.Context) {
-	type Req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-	var req Req
-	if err := ctx.Bind(&req); err != nil {
-		return
-	}
-	domainUser, err := userHandler.userService.Login(ctx, req.Email, req.Password)
-	switch err {
-	case nil:
-		tokenString, _, err := userHandler.tokenMaker.CreateToken(
-			domainUser.Id,
-			domainUser.Email,
-			userHandler.config.AccessTokenDuration,
-		)
-		if err != nil {
-			log.Printf("创建token失败:%v", err)
-			ctx.String(http.StatusOK, "系统错误")
-			return
-		}
-		ctx.Header(userHandler.config.TokenKey, tokenString)
-		ctx.String(http.StatusOK, "登录成功")
-	case service.ErrInvalidUserOrPassword:
-		ctx.String(http.StatusOK, "用户名或者密码不对")
-	default:
 		ctx.String(http.StatusOK, "系统错误")
 	}
 }
