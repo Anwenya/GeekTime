@@ -7,6 +7,7 @@ metadata:
 spec:
   ingressClassName: nic
   rules:
+    # 这里填写主机IP地址的话可以直接对外暴露
     - host: webook
       http:
         paths:
