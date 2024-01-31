@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: webook-redis-service
+spec:
+  selector:
+    app: webook-redis
+  ports:
+    - protocol: TCP
+      # 内部
+      port: 6380
+      # 外部访问端口 30000-32767
+      nodePort: 30379
+      targetPort: 6379
+  type: NodePort
