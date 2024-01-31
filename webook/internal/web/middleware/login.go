@@ -62,6 +62,9 @@ func checkLoginWithSession(ctx *gin.Context, config *util.Config) bool {
 		sess.Set(updateTimeKey, now)
 		sess.Set("uid", userId)
 		sess.Set("ua", ua)
+		sess.Options(sessions.Options{
+			MaxAge: int(config.SessionDuration.Seconds()),
+		})
 		err := sess.Save()
 		if err != nil {
 			log.Printf("刷新session失败:%v", err)
