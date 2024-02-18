@@ -17,6 +17,7 @@ import (
 const (
 	emailRegexPattern    = `^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$`
 	passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
+	bizLogin             = "login"
 )
 
 type UserHandler struct {
@@ -25,15 +26,22 @@ type UserHandler struct {
 	emailRexExp    *regexp.Regexp
 	passwordRexExp *regexp.Regexp
 	userService    *service.UserService
+	codeService    *service.CodeService
 }
 
-func NewUserHandler(userService *service.UserService, config *util.Config, tokenMaker token.Maker) *UserHandler {
+func NewUserHandler(
+	userService *service.UserService,
+	codeService *service.CodeService,
+	config *util.Config,
+	tokenMaker token.Maker,
+) *UserHandler {
 	return &UserHandler{
 		config:         config,
 		tokenMaker:     tokenMaker,
 		emailRexExp:    regexp.MustCompile(emailRegexPattern, regexp.None),
 		passwordRexExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
 		userService:    userService,
+		codeService:    codeService,
 	}
 }
 
@@ -44,6 +52,8 @@ func (userHandler *UserHandler) RegisterRoutes(server *gin.Engine) {
 	userGroup.POST("/login/token", userHandler.LoginWithToken)
 	userGroup.POST("/edit", userHandler.Edit)
 	userGroup.GET("/profile", userHandler.Profile)
+	userGroup.POST("/login_sms/code/send", userHandler.LoginSendSMSCode)
+	userGroup.POST("/login_sms", userHandler.LoginWithSMS)
 }
 
 func (userHandler *UserHandler) SignUp(ctx *gin.Context) {
@@ -150,18 +160,7 @@ func (userHandler *UserHandler) LoginWithToken(ctx *gin.Context) {
 	domainUser, err := userHandler.userService.Login(ctx, req.Email, req.Password)
 	switch err {
 	case nil:
-		tokenString, _, err := userHandler.tokenMaker.CreateToken(
-			domainUser.Id,
-			domainUser.Email,
-			userHandler.config.AccessTokenDuration,
-			ctx.GetHeader("User-Agent"),
-		)
-		if err != nil {
-			log.Printf("创建token失败:%v", err)
-			ctx.String(http.StatusOK, "系统错误")
-			return
-		}
-		ctx.Header(userHandler.config.TokenKey, tokenString)
+		userHandler.setToken(ctx, &domainUser)
 		ctx.String(http.StatusOK, "登录成功")
 	case service.ErrInvalidUserOrPassword:
 		log.Printf("token登录失败:%v", err)
@@ -221,13 +220,104 @@ func (userHandler *UserHandler) Profile(ctx *gin.Context) {
 	type User struct {
 		Nickname string `json:"nickname"`
 		Email    string `json:"email"`
+		Phone    string `json:"phone"`
 		Bio      string `json:"bio"`
 		Birthday string `json:"birthday"`
 	}
 	ctx.JSON(http.StatusOK, User{
 		Nickname: domainUser.Nickname,
 		Email:    domainUser.Email,
+		Phone:    domainUser.Phone,
 		Bio:      domainUser.Bio,
 		Birthday: domainUser.Birthday.Format(time.DateOnly),
 	})
+}
+
+func (userHandler *UserHandler) LoginSendSMSCode(ctx *gin.Context) {
+	type Req struct {
+		Phone string `json:"phone"`
+	}
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	if req.Phone == "" {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "请输入手机号码",
+		})
+		return
+	}
+	err := userHandler.codeService.Send(ctx, bizLogin, req.Phone)
+	switch err {
+	case nil:
+		ctx.JSON(http.StatusOK, Result{
+			Msg: "发送成功",
+		})
+	case service.ErrCodeSendTooMany:
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "短信发送太频繁，请稍后再试",
+		})
+	default:
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		log.Printf("短信发送异常:%v", err)
+	}
+}
+
+func (userHandler *UserHandler) LoginWithSMS(ctx *gin.Context) {
+	type Req struct {
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
+	}
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+
+	ok, err := userHandler.codeService.Verify(ctx, bizLogin, req.Phone, req.Code)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统异常",
+		})
+		return
+	}
+	if !ok {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "验证码错误",
+		})
+		return
+	}
+	domainUser, err := userHandler.userService.FindOrCreate(ctx, req.Phone)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	userHandler.setToken(ctx, &domainUser)
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "登录成功",
+	})
+}
+
+func (userHandler *UserHandler) setToken(ctx *gin.Context, user *domain.User) {
+	tokenString, _, err := userHandler.tokenMaker.CreateToken(
+		user.Id,
+		user.Email,
+		userHandler.config.AccessTokenDuration,
+		ctx.GetHeader("User-Agent"),
+	)
+	if err != nil {
+		log.Printf("创建token失败:%v", err)
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	ctx.Header(userHandler.config.TokenKey, tokenString)
 }

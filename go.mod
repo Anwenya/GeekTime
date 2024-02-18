@@ -16,6 +16,8 @@ require (
 	github.com/redis/go-redis/v9 v9.4.0
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.8.4
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.857
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms v1.0.857
 	gorm.io/driver/mysql v1.5.2
 	gorm.io/gorm v1.25.5
 )

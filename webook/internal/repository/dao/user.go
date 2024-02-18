@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -62,13 +63,20 @@ func (userDao *UserDAO) FindUserById(ctx context.Context, uid int64) (User, erro
 	return user, err
 }
 
+func (userDao *UserDAO) FindUserByPhone(ctx context.Context, phone string) (User, error) {
+	var user User
+	err := userDao.db.WithContext(ctx).Where("phone = ?", phone).First(&user).Error
+	return user, err
+}
+
 type User struct {
-	Id         int64  `gorm:"primaryKey,autoIncrement"`
-	Email      string `gorm:"unique"`
+	Id         int64          `gorm:"primaryKey,autoIncrement"`
+	Email      sql.NullString `gorm:"unique"`
 	Password   string
 	Nickname   string `gorm:"type=varchar(128)"`
 	Birthday   int64
-	Bio        string `gorm:"type=varchar(4096)"`
+	Bio        string         `gorm:"type=varchar(4096)"`
+	Phone      sql.NullString `gorm:"unique"`
 	CreateTime int64
 	UpdateTime int64
 }
