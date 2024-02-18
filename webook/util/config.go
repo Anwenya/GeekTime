@@ -19,7 +19,7 @@ type Config struct {
 	CorsDuration         time.Duration `mapstructure:"CORS_DURATION"`
 	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
 	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
-	TokenKey             string        `mapstructure:"REFRESH_TOKEN_DURATION"`
+	TokenKey             string        `mapstructure:"TOKEN_KEY"`
 	TokenSecretKey       string        `mapstructure:"TOKEN_SECRET_KEY"`
 	SessionSecretKey1    []byte        `mapstructure:"SESSION_SECRET_KEY1"`
 	SessionSecretKey2    []byte        `mapstructure:"SESSION_SECRET_KEY2"`

@@ -119,7 +119,7 @@ func (userHandler *UserHandler) Login(ctx *gin.Context) {
 		sess.Set("uid", domainUser.Id)
 		sess.Set("ua", ctx.GetHeader("User-Agent"))
 		sess.Options(sessions.Options{
-			MaxAge: int(userHandler.config.SessionDuration),
+			MaxAge: int(userHandler.config.SessionDuration.Seconds()),
 		})
 		err = sess.Save()
 		if err != nil {
