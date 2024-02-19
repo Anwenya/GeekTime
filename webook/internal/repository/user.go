@@ -16,31 +16,39 @@ var (
 	ErrUserNotFound  = dao.ErrRecordNotFound
 )
 
-type UserRepository struct {
-	userDao *dao.UserDAO
-	cache   *cache.UserCache
+type UserRepository interface {
+	Create(ctx context.Context, domainUser domain.User) error
+	FindByEmail(ctx context.Context, email string) (domain.User, error)
+	UpdateNonZeroFields(ctx context.Context, domainUser domain.User) error
+	FindById(ctx context.Context, uid int64) (domain.User, error)
+	FindByPhone(ctx context.Context, phone string) (domain.User, error)
 }
 
-func NewUserRepository(userDao *dao.UserDAO, cache *cache.UserCache) *UserRepository {
-	return &UserRepository{
+type CachedUserRepository struct {
+	userDao dao.UserDAO
+	cache   cache.UserCache
+}
+
+func NewCachedUserRepository(userDao dao.UserDAO, cache cache.UserCache) UserRepository {
+	return &CachedUserRepository{
 		userDao: userDao,
 		cache:   cache,
 	}
 }
 
-func (userRepository *UserRepository) Create(ctx context.Context, domainUser domain.User) error {
-	return userRepository.userDao.Insert(ctx, userRepository.toEntity(domainUser))
+func (cur *CachedUserRepository) Create(ctx context.Context, domainUser domain.User) error {
+	return cur.userDao.Insert(ctx, cur.toEntity(domainUser))
 }
 
-func (userRepository *UserRepository) FindByEmail(ctx context.Context, email string) (domain.User, error) {
-	daoUser, err := userRepository.userDao.FindUserByEmail(ctx, email)
+func (cur *CachedUserRepository) FindByEmail(ctx context.Context, email string) (domain.User, error) {
+	daoUser, err := cur.userDao.FindUserByEmail(ctx, email)
 	if err != nil {
 		return domain.User{}, err
 	}
-	return userRepository.toDomain(daoUser), nil
+	return cur.toDomain(daoUser), nil
 }
 
-func (userRepository *UserRepository) toDomain(daoUser dao.User) domain.User {
+func (cur *CachedUserRepository) toDomain(daoUser dao.User) domain.User {
 	return domain.User{
 		Id:       daoUser.Id,
 		Email:    daoUser.Email.String,
@@ -52,7 +60,7 @@ func (userRepository *UserRepository) toDomain(daoUser dao.User) domain.User {
 	}
 }
 
-func (userRepository *UserRepository) toEntity(domainUser domain.User) dao.User {
+func (cur *CachedUserRepository) toEntity(domainUser domain.User) dao.User {
 	return dao.User{
 		Id: domainUser.Id,
 		Email: sql.NullString{
@@ -70,13 +78,13 @@ func (userRepository *UserRepository) toEntity(domainUser domain.User) dao.User 
 	}
 }
 
-func (userRepository *UserRepository) UpdateNonZeroFields(ctx context.Context, domainUser domain.User) error {
-	return userRepository.userDao.UpdateUserById(ctx, userRepository.toEntity(domainUser))
+func (cur *CachedUserRepository) UpdateNonZeroFields(ctx context.Context, domainUser domain.User) error {
+	return cur.userDao.UpdateUserById(ctx, cur.toEntity(domainUser))
 }
 
-func (userRepository *UserRepository) FindById(ctx context.Context, uid int64) (domain.User, error) {
+func (cur *CachedUserRepository) FindById(ctx context.Context, uid int64) (domain.User, error) {
 	// 先尝试查询缓存
-	du, err := userRepository.cache.Get(ctx, uid)
+	du, err := cur.cache.Get(ctx, uid)
 	// 只要err为nil就返回 说明查到了缓存
 	if err == nil {
 		return du, nil
@@ -92,13 +100,13 @@ func (userRepository *UserRepository) FindById(ctx context.Context, uid int64) (
 	//}
 
 	// err 不为nil则查询数据库
-	daoUser, err := userRepository.userDao.FindUserById(ctx, uid)
+	daoUser, err := cur.userDao.FindUserById(ctx, uid)
 	if err != nil {
 		return domain.User{}, err
 	}
 
-	du = userRepository.toDomain(daoUser)
-	err = userRepository.cache.Set(ctx, du)
+	du = cur.toDomain(daoUser)
+	err = cur.cache.Set(ctx, du)
 	// 设置缓存失败只记录日志
 	if err != nil {
 		log.Printf("设置缓存失败:%v", err)
@@ -107,10 +115,10 @@ func (userRepository *UserRepository) FindById(ctx context.Context, uid int64) (
 	return du, nil
 }
 
-func (userRepository *UserRepository) FindByPhone(ctx context.Context, phone string) (domain.User, error) {
-	u, err := userRepository.userDao.FindUserByPhone(ctx, phone)
+func (cur *CachedUserRepository) FindByPhone(ctx context.Context, phone string) (domain.User, error) {
+	u, err := cur.userDao.FindUserByPhone(ctx, phone)
 	if err != nil {
 		return domain.User{}, err
 	}
-	return userRepository.toDomain(u), nil
+	return cur.toDomain(u), nil
 }

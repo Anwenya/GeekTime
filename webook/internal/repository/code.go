@@ -7,20 +7,25 @@ import (
 
 var ErrCodeVerifyTooMany = cache.ErrCodeVerifyTooMany
 
-type CodeRepository struct {
-	cache *cache.CodeCache
+type CodeRepository interface {
+	Set(ctx context.Context, biz, phone, code string) error
+	Verify(ctx context.Context, biz, phone, code string) (bool, error)
 }
 
-func NewCodeRepository(cc *cache.CodeCache) *CodeRepository {
-	return &CodeRepository{
-		cache: cc,
+type CachedCodeRepository struct {
+	cc cache.CodeCache
+}
+
+func NewCachedCodeRepository(cc cache.CodeCache) CodeRepository {
+	return &CachedCodeRepository{
+		cc: cc,
 	}
 }
 
-func (cc *CodeRepository) Set(ctx context.Context, biz, phone, code string) error {
-	return cc.cache.Set(ctx, biz, phone, code)
+func (ccr *CachedCodeRepository) Set(ctx context.Context, biz, phone, code string) error {
+	return ccr.cc.Set(ctx, biz, phone, code)
 }
 
-func (cc *CodeRepository) Verify(ctx context.Context, biz, phone, code string) (bool, error) {
-	return cc.cache.Verify(ctx, biz, phone, code)
+func (ccr *CachedCodeRepository) Verify(ctx context.Context, biz, phone, code string) (bool, error) {
+	return ccr.cc.Verify(ctx, biz, phone, code)
 }

@@ -14,27 +14,35 @@ var (
 	ErrInvalidUserOrPassword = errors.New("用户不存在或密码不匹配")
 )
 
-type UserService struct {
-	userRepository *repository.UserRepository
+type UserService interface {
+	Signup(ctx context.Context, domainUser domain.User) error
+	Login(ctx context.Context, email string, password string) (domain.User, error)
+	UpdateNonSensitiveInfo(ctx context.Context, domainUser domain.User) error
+	FindById(ctx context.Context, uid int64) (domain.User, error)
+	FindOrCreate(ctx context.Context, phone string) (domain.User, error)
 }
 
-func NewUserService(userRepository *repository.UserRepository) *UserService {
-	return &UserService{
-		userRepository: userRepository,
+type userService struct {
+	ur repository.UserRepository
+}
+
+func NewUserService(ur repository.UserRepository) UserService {
+	return &userService{
+		ur: ur,
 	}
 }
 
-func (userService *UserService) Signup(ctx context.Context, domainUser domain.User) error {
+func (us *userService) Signup(ctx context.Context, domainUser domain.User) error {
 	hash, err := util.HashPassword(domainUser.Password)
 	if err != nil {
 		return err
 	}
 	domainUser.Password = hash
-	return userService.userRepository.Create(ctx, domainUser)
+	return us.ur.Create(ctx, domainUser)
 }
 
-func (userService *UserService) Login(ctx context.Context, email string, password string) (domain.User, error) {
-	domainUser, err := userService.userRepository.FindByEmail(ctx, email)
+func (us *userService) Login(ctx context.Context, email string, password string) (domain.User, error) {
+	domainUser, err := us.ur.FindByEmail(ctx, email)
 	if err == repository.ErrUserNotFound {
 		return domain.User{}, ErrInvalidUserOrPassword
 	}
@@ -48,17 +56,17 @@ func (userService *UserService) Login(ctx context.Context, email string, passwor
 	return domainUser, nil
 }
 
-func (userService *UserService) UpdateNonSensitiveInfo(ctx context.Context, domainUser domain.User) error {
-	return userService.userRepository.UpdateNonZeroFields(ctx, domainUser)
+func (us *userService) UpdateNonSensitiveInfo(ctx context.Context, domainUser domain.User) error {
+	return us.ur.UpdateNonZeroFields(ctx, domainUser)
 }
 
-func (userService *UserService) FindById(ctx context.Context, uid int64) (domain.User, error) {
-	return userService.userRepository.FindById(ctx, uid)
+func (us *userService) FindById(ctx context.Context, uid int64) (domain.User, error) {
+	return us.ur.FindById(ctx, uid)
 }
 
-func (userService *UserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
+func (us *userService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
 	// 大部分情况应该是已经注册过的用户
-	u, err := userService.userRepository.FindByPhone(ctx, phone)
+	u, err := us.ur.FindByPhone(ctx, phone)
 	// 先确保用户不存在
 	if err != repository.ErrUserNotFound {
 		// 两种情况
@@ -69,7 +77,7 @@ func (userService *UserService) FindOrCreate(ctx context.Context, phone string) 
 
 	// 用户没有找到
 	// 创建用户
-	err = userService.userRepository.Create(ctx, domain.User{Phone: phone})
+	err = us.ur.Create(ctx, domain.User{Phone: phone})
 
 	// 有两种可能
 	// 1.err是唯一索引冲突
@@ -82,5 +90,5 @@ func (userService *UserService) FindOrCreate(ctx context.Context, phone string) 
 	// 1.err == nil 一切顺利
 	// 2.索引冲突 但也代表用户存在 再次查询
 	// 查询可能存在主从延迟 可以强制走主库
-	return userService.userRepository.FindByPhone(ctx, phone)
+	return us.ur.FindByPhone(ctx, phone)
 }

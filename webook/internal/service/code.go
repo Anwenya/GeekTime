@@ -10,34 +10,39 @@ import (
 
 var ErrCodeSendTooMany = repository.ErrCodeVerifyTooMany
 
-type CodeService struct {
-	repo *repository.CodeRepository
-	sms  sms.SMService
+type CodeService interface {
+	Send(ctx context.Context, biz, phone string) error
+	Verify(ctx context.Context, biz, phone, inputCode string) (bool, error)
 }
 
-func NewCodeService(repo *repository.CodeRepository, smsSvc sms.SMService) *CodeService {
-	return &CodeService{
-		repo: repo,
-		sms:  smsSvc,
+type codeService struct {
+	cr  repository.CodeRepository
+	sms sms.SMService
+}
+
+func NewCodeService(cr repository.CodeRepository, sms sms.SMService) CodeService {
+	return &codeService{
+		cr:  cr,
+		sms: sms,
 	}
 }
 
-func (svc *CodeService) Send(ctx context.Context, biz, phone string) error {
+func (cs *codeService) Send(ctx context.Context, biz, phone string) error {
 	// 生成验证码
-	code := svc.generate()
+	code := cs.generate()
 	// 存储到redis中 同时能解决并发问题
-	err := svc.repo.Set(ctx, biz, phone, code)
+	err := cs.cr.Set(ctx, biz, phone, code)
 	if err != nil {
 		return err
 	}
 	// 真正发送验证码
 	const codeTplId = "953406"
-	return svc.sms.Send(ctx, codeTplId, []string{code}, phone)
+	return cs.sms.Send(ctx, codeTplId, []string{code}, phone)
 }
 
-func (svc *CodeService) Verify(ctx context.Context, biz, phone, inputCode string) (bool, error) {
+func (cs *codeService) Verify(ctx context.Context, biz, phone, inputCode string) (bool, error) {
 	// 在redis中验证
-	ok, err := svc.repo.Verify(ctx, biz, phone, inputCode)
+	ok, err := cs.cr.Verify(ctx, biz, phone, inputCode)
 	// 对外面屏蔽了验证次数过多的错误
 	if err == repository.ErrCodeVerifyTooMany {
 		return false, nil
@@ -45,7 +50,7 @@ func (svc *CodeService) Verify(ctx context.Context, biz, phone, inputCode string
 	return ok, err
 }
 
-func (svc *CodeService) generate() string {
+func (cs *codeService) generate() string {
 	// 0-999999
 	code := rand.Intn(1000000)
 	return fmt.Sprintf("%06d", code)

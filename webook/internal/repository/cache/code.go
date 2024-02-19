@@ -20,18 +20,23 @@ var (
 	ErrCodeInfinite      = errors.New("验证码存在 但是没有过期时间")
 )
 
-type CodeCache struct {
+type CodeCache interface {
+	Set(ctx context.Context, biz, phone, code string) error
+	Verify(ctx context.Context, biz, phone, code string) (bool, error)
+}
+
+type RedisCodeCache struct {
 	cmd redis.Cmdable
 }
 
-func NewCodeCache(cmd redis.Cmdable) *CodeCache {
-	return &CodeCache{
+func NewCodeCache(cmd redis.Cmdable) CodeCache {
+	return &RedisCodeCache{
 		cmd: cmd,
 	}
 }
 
-func (cc *CodeCache) Set(ctx context.Context, biz, phone, code string) error {
-	res, err := cc.cmd.Eval(ctx, luaSetCode, []string{cc.key(biz, phone)}, code).Int()
+func (rcc *RedisCodeCache) Set(ctx context.Context, biz, phone, code string) error {
+	res, err := rcc.cmd.Eval(ctx, luaSetCode, []string{rcc.key(biz, phone)}, code).Int()
 	// 调用redis时异常
 	if err != nil {
 		return err
@@ -49,8 +54,8 @@ func (cc *CodeCache) Set(ctx context.Context, biz, phone, code string) error {
 	}
 }
 
-func (cc *CodeCache) Verify(ctx context.Context, biz, phone, code string) (bool, error) {
-	res, err := cc.cmd.Eval(ctx, luaVerifyCode, []string{cc.key(biz, phone)}, code).Int()
+func (rcc *RedisCodeCache) Verify(ctx context.Context, biz, phone, code string) (bool, error) {
+	res, err := rcc.cmd.Eval(ctx, luaVerifyCode, []string{rcc.key(biz, phone)}, code).Int()
 	// 调用redis时异常
 	if err != nil {
 		return false, err
@@ -69,6 +74,6 @@ func (cc *CodeCache) Verify(ctx context.Context, biz, phone, code string) (bool,
 	}
 }
 
-func (cc *CodeCache) key(biz, phone string) string {
+func (rcc *RedisCodeCache) key(biz, phone string) string {
 	return fmt.Sprintf("phone_code:%s:%s", biz, phone)
 }

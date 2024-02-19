@@ -11,22 +11,27 @@ import (
 
 var ErrKeyNotExist = redis.Nil
 
-type UserCache struct {
+type UserCache interface {
+	Get(ctx context.Context, uid int64) (domain.User, error)
+	Set(ctx context.Context, du domain.User) error
+}
+
+type RedisUserCache struct {
 	cmd        redis.Cmdable
 	expiration time.Duration
 }
 
-func NewUserCache(cmd redis.Cmdable) *UserCache {
-	return &UserCache{
+func NewUserCache(cmd redis.Cmdable) UserCache {
+	return &RedisUserCache{
 		cmd:        cmd,
 		expiration: time.Minute * 15,
 	}
 }
 
-func (uc *UserCache) Get(ctx context.Context, uid int64) (domain.User, error) {
-	key := uc.key(uid)
+func (ruc *RedisUserCache) Get(ctx context.Context, uid int64) (domain.User, error) {
+	key := ruc.key(uid)
 	// 查询缓存
-	data, err := uc.cmd.Get(ctx, key).Result()
+	data, err := ruc.cmd.Get(ctx, key).Result()
 	// 可能是不存在该key 也可能是redis异常 也可能是网络异常
 	if err != nil {
 		return domain.User{}, err
@@ -37,17 +42,17 @@ func (uc *UserCache) Get(ctx context.Context, uid int64) (domain.User, error) {
 	return u, err
 }
 
-func (uc *UserCache) Set(ctx context.Context, du domain.User) error {
-	key := uc.key(du.Id)
+func (ruc *RedisUserCache) Set(ctx context.Context, du domain.User) error {
+	key := ruc.key(du.Id)
 	// 可能有不同的序列化方式
 	data, err := json.Marshal(du)
 	if err != nil {
 		return err
 	}
 	// 设置缓存并返回结果
-	return uc.cmd.Set(ctx, key, data, uc.expiration).Err()
+	return ruc.cmd.Set(ctx, key, data, ruc.expiration).Err()
 }
 
-func (uc *UserCache) key(uid int64) string {
+func (ruc *RedisUserCache) key(uid int64) string {
 	return fmt.Sprintf("user:info:%d", uid)
 }

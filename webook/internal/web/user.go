@@ -25,13 +25,13 @@ type UserHandler struct {
 	tokenMaker     token.Maker
 	emailRexExp    *regexp.Regexp
 	passwordRexExp *regexp.Regexp
-	userService    *service.UserService
-	codeService    *service.CodeService
+	userService    service.UserService
+	codeService    service.CodeService
 }
 
 func NewUserHandler(
-	userService *service.UserService,
-	codeService *service.CodeService,
+	userService service.UserService,
+	codeService service.CodeService,
 	config *util.Config,
 	tokenMaker token.Maker,
 ) *UserHandler {

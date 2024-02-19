@@ -52,10 +52,12 @@ func LoadConfig(path string) (config *Config, err error) {
 	// 环境变量中的值会覆盖配置文件中的同名值
 	viper.AutomaticEnv()
 
-	optDecode := viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
-		mapstructure.StringToTimeDurationHookFunc(),
-		StringToByteSliceHookFunc(),
-	))
+	optDecode := viper.DecodeHook(
+		mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			StringToByteSliceHookFunc(),
+		),
+	)
 
 	err = viper.ReadInConfig()
 	if err != nil {
