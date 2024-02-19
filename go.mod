@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/aead/chacha20poly1305 v0.0.0-20201124145622-1a5aba2a8b29
+	github.com/allegro/bigcache/v3 v3.1.0
 	github.com/dlclark/regexp2 v1.10.0
 	github.com/gin-contrib/sessions v0.0.5
 	github.com/gin-gonic/gin v1.9.1
