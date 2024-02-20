@@ -10,7 +10,7 @@ import (
 type CorsMiddlewareBuilder struct {
 }
 
-func (corsMiddlewareBuilder *CorsMiddlewareBuilder) Cors(config *util.Config) gin.HandlerFunc {
+func (corsMiddlewareBuilder *CorsMiddlewareBuilder) Cors() gin.HandlerFunc {
 
 	return cors.New(cors.Config{
 		AllowCredentials: true,
@@ -21,6 +21,6 @@ func (corsMiddlewareBuilder *CorsMiddlewareBuilder) Cors(config *util.Config) gi
 			}
 			return strings.Contains(origin, "your_company.com")
 		},
-		MaxAge: config.CorsDuration,
+		MaxAge: util.Config.CorsDuration,
 	})
 }

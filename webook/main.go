@@ -9,14 +9,10 @@ import (
 )
 
 func main() {
-	var config, err = util.LoadConfig(".")
-	if err != nil {
-		log.Fatalf("配置文件加载失败:%v", err)
-	}
 	server := InitWebServer()
-	err = server.Run(config.HTTPServerAddress)
+	err := server.Run(util.Config.HTTPServerAddress)
 	if err != nil {
 		log.Fatalf("启动失败:%v", err)
 	}
-	log.Printf("启动成功:%v", config.HTTPServerAddress)
+	log.Printf("启动成功:%v", util.Config.HTTPServerAddress)
 }

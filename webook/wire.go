@@ -15,9 +15,6 @@ import (
 
 func InitWebServer() *gin.Engine {
 	wire.Build(
-		// 通用
-		ioc.InitConfig, ioc.InitTokenMaker,
-
 		// 第三方
 		ioc.InitDB, ioc.InitRedis,
 

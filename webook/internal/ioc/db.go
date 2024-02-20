@@ -9,8 +9,8 @@ import (
 	"log"
 )
 
-func InitDB(config *util.Config) *gorm.DB {
-	db, err := gorm.Open(mysql.Open(config.DBUrlMySQL),
+func InitDB() *gorm.DB {
+	db, err := gorm.Open(mysql.Open(util.Config.DBUrlMySQL),
 		&gorm.Config{
 			Logger: logger.Default.LogMode(logger.Info),
 		})
@@ -19,14 +19,14 @@ func InitDB(config *util.Config) *gorm.DB {
 	}
 
 	log.Println("数据库连接成功")
-	mysqlMigration(config)
+	mysqlMigration()
 	return db
 }
 
-func mysqlMigration(config *util.Config) {
+func mysqlMigration() {
 	migration, err := migrate.New(
-		config.MigrationSourceUrl,
-		config.MigrationDBUrl,
+		util.Config.MigrationSourceUrl,
+		util.Config.MigrationDBUrl,
 	)
 	if err != nil {
 		log.Fatalf("数据库迁移失败:%v", err)

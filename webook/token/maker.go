@@ -1,6 +1,8 @@
 package token
 
 import (
+	"github.com/Anwenya/GeekTime/webook/util"
+	"log"
 	"time"
 )
 
@@ -11,4 +13,15 @@ type Maker interface {
 
 	// VerifyToken checks if the token is valid or not
 	VerifyToken(token string) (*Payload, error)
+}
+
+var TkMaker Maker
+
+func init() {
+	var err error
+	TkMaker, err = NewPasetoMaker(util.Config.TokenSecretKey)
+	if err != nil {
+		log.Fatalf("初始化tokenMaker失败:%v", err)
+	}
+	log.Println("tokenMaker初始化成功")
 }

@@ -15,7 +15,7 @@ import (
 type LoginMiddlewareBuilder struct {
 }
 
-func (loginMiddlewareBuilder *LoginMiddlewareBuilder) CheckLogin(config *util.Config, tokenMaker token.Maker) gin.HandlerFunc {
+func (loginMiddlewareBuilder *LoginMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
 	gob.Register(time.Now())
 	return func(ctx *gin.Context) {
 		path := ctx.Request.URL.Path
@@ -23,12 +23,12 @@ func (loginMiddlewareBuilder *LoginMiddlewareBuilder) CheckLogin(config *util.Co
 			return
 		}
 
-		if ok := checkLoginWithSession(ctx, config); ok {
+		if ok := checkLoginWithSession(ctx); ok {
 			ctx.Next()
 			return
 		}
 
-		if ok := checkLoginWithToken(ctx, config, tokenMaker); ok {
+		if ok := checkLoginWithToken(ctx); ok {
 			ctx.Next()
 			return
 		}
@@ -38,7 +38,7 @@ func (loginMiddlewareBuilder *LoginMiddlewareBuilder) CheckLogin(config *util.Co
 	}
 }
 
-func checkLoginWithSession(ctx *gin.Context, config *util.Config) bool {
+func checkLoginWithSession(ctx *gin.Context) bool {
 	sess := sessions.Default(ctx)
 	userId := sess.Get("uid")
 	if userId == nil {
@@ -63,7 +63,7 @@ func checkLoginWithSession(ctx *gin.Context, config *util.Config) bool {
 		sess.Set("uid", userId)
 		sess.Set("ua", ua)
 		sess.Options(sessions.Options{
-			MaxAge: int(config.SessionDuration.Seconds()),
+			MaxAge: int(util.Config.SessionDuration.Seconds()),
 		})
 		err := sess.Save()
 		if err != nil {
@@ -75,7 +75,7 @@ func checkLoginWithSession(ctx *gin.Context, config *util.Config) bool {
 	return true
 }
 
-func checkLoginWithToken(ctx *gin.Context, config *util.Config, tokenMaker token.Maker) bool {
+func checkLoginWithToken(ctx *gin.Context) bool {
 	authCode := ctx.GetHeader("Authorization")
 	// 没有认证头
 	if authCode == "" {
@@ -90,7 +90,7 @@ func checkLoginWithToken(ctx *gin.Context, config *util.Config, tokenMaker token
 	}
 	tokenStr := segs[1]
 	// 过期或者其他原因导致的校验失败
-	payload, err := tokenMaker.VerifyToken(tokenStr)
+	payload, err := token.TkMaker.VerifyToken(tokenStr)
 	if err != nil {
 		log.Printf("token认证失败:%v", err)
 		return false
@@ -104,16 +104,16 @@ func checkLoginWithToken(ctx *gin.Context, config *util.Config, tokenMaker token
 
 	// 尝试刷新token
 	if payload.ExpiresAt.Sub(time.Now()) < time.Minute {
-		newToken, _, err := tokenMaker.CreateToken(
+		newToken, _, err := token.TkMaker.CreateToken(
 			payload.Uid,
 			payload.Username,
-			config.AccessTokenDuration,
+			util.Config.AccessTokenDuration,
 			payload.UserAgent,
 		)
 		if err != nil {
 			log.Printf("刷新token失败:%v", err)
 		}
-		ctx.Header(config.TokenKey, newToken)
+		ctx.Header(util.Config.TokenKey, newToken)
 	}
 	// 设置uid用于下文
 	ctx.Set("uid", payload.Uid)

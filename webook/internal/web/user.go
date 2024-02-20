@@ -21,8 +21,6 @@ const (
 )
 
 type UserHandler struct {
-	config         *util.Config
-	tokenMaker     token.Maker
 	emailRexExp    *regexp.Regexp
 	passwordRexExp *regexp.Regexp
 	userService    service.UserService
@@ -32,12 +30,8 @@ type UserHandler struct {
 func NewUserHandler(
 	userService service.UserService,
 	codeService service.CodeService,
-	config *util.Config,
-	tokenMaker token.Maker,
 ) *UserHandler {
 	return &UserHandler{
-		config:         config,
-		tokenMaker:     tokenMaker,
 		emailRexExp:    regexp.MustCompile(emailRegexPattern, regexp.None),
 		passwordRexExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
 		userService:    userService,
@@ -129,7 +123,7 @@ func (userHandler *UserHandler) Login(ctx *gin.Context) {
 		sess.Set("uid", domainUser.Id)
 		sess.Set("ua", ctx.GetHeader("User-Agent"))
 		sess.Options(sessions.Options{
-			MaxAge: int(userHandler.config.SessionDuration.Seconds()),
+			MaxAge: int(util.Config.SessionDuration.Seconds()),
 		})
 		err = sess.Save()
 		if err != nil {
@@ -308,10 +302,10 @@ func (userHandler *UserHandler) LoginWithSMS(ctx *gin.Context) {
 }
 
 func (userHandler *UserHandler) setToken(ctx *gin.Context, user *domain.User) {
-	tokenString, _, err := userHandler.tokenMaker.CreateToken(
+	tokenString, _, err := token.TkMaker.CreateToken(
 		user.Id,
 		user.Email,
-		userHandler.config.AccessTokenDuration,
+		util.Config.AccessTokenDuration,
 		ctx.GetHeader("User-Agent"),
 	)
 	if err != nil {
@@ -319,5 +313,5 @@ func (userHandler *UserHandler) setToken(ctx *gin.Context, user *domain.User) {
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
-	ctx.Header(userHandler.config.TokenKey, tokenString)
+	ctx.Header(util.Config.TokenKey, tokenString)
 }
