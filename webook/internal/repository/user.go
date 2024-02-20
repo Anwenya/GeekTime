@@ -50,13 +50,14 @@ func (cur *CachedUserRepository) FindByEmail(ctx context.Context, email string) 
 
 func (cur *CachedUserRepository) toDomain(daoUser dao.User) domain.User {
 	return domain.User{
-		Id:       daoUser.Id,
-		Email:    daoUser.Email.String,
-		Phone:    daoUser.Phone.String,
-		Password: daoUser.Password,
-		Nickname: daoUser.Nickname,
-		Birthday: time.UnixMilli(daoUser.Birthday),
-		Bio:      daoUser.Bio,
+		Id:         daoUser.Id,
+		Email:      daoUser.Email.String,
+		Phone:      daoUser.Phone.String,
+		Password:   daoUser.Password,
+		Nickname:   daoUser.Nickname,
+		Birthday:   time.UnixMilli(daoUser.Birthday),
+		Bio:        daoUser.Bio,
+		CreateTime: time.UnixMilli(daoUser.CreateTime),
 	}
 }
 

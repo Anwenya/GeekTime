@@ -31,3 +31,15 @@ k8s-apply-app:
 k8s-delete-app:
 	@kubectl delete -f webook-app-deploy.yaml
 	@kubectl delete -f webook-app-service.yaml
+
+mock:
+	@mockgen -source="./internal/service/user.go" -package=mockservice -destination="./internal/service/mocks/user.mock.go"
+	@mockgen -source="./internal/service/code.go" -package=mockservice -destination="./internal/service/mocks/code.mock.go"
+	@mockgen -source="./internal/repository/code.go" -package=mockrepository -destination="./internal/repository/mocks/code.mock.go"
+	@mockgen -source="./internal/repository/user.go" -package=mockrepository -destination="./internal/repository/mocks/user.mock.go"
+	@mockgen -source="./internal/repository/dao/user.go" -package=mockdao -destination="./internal/repository/dao/mocks/user.mock.go"
+	@mockgen -source="./internal/repository/cache/user.go" -package=mockcache -destination="./internal/repository/cache/mocks/user.mock.go"
+	@mockgen -source="./internal/repository/cache/code.go" -package=mockcache -destination="./internal/repository/cache/mocks/code.mock.go"
+
+	@mockgen -package mockredis -destination "./internal/repository/cache/mockredis/redis.mock.go" github.com/redis/go-redis/v9 Cmdable
+	@go mod tidy
