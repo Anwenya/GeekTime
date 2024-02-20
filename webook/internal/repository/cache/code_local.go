@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/allegro/bigcache/v3"
+	"sync"
 	"time"
 )
 
 type LocalCodeCache struct {
 	cache      *bigcache.BigCache
+	mutex      sync.Mutex
 	expiration time.Duration
 }
 
@@ -49,6 +51,9 @@ func (lcc *LocalCodeCache) getItem(key string) (codeItem, error) {
 }
 
 func (lcc *LocalCodeCache) Set(ctx context.Context, biz, phone, code string) error {
+	lcc.mutex.Lock()
+	defer lcc.mutex.Unlock()
+
 	key := lcc.key(biz, phone)
 
 	now := time.Now()
@@ -83,6 +88,9 @@ func (lcc *LocalCodeCache) Set(ctx context.Context, biz, phone, code string) err
 }
 
 func (lcc *LocalCodeCache) Verify(ctx context.Context, biz, phone, code string) (bool, error) {
+	lcc.mutex.Lock()
+	defer lcc.mutex.Unlock()
+
 	key := lcc.key(biz, phone)
 	item, err := lcc.getItem(key)
 	// 缓存不存在
