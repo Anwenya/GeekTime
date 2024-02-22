@@ -41,5 +41,9 @@ mock:
 	@mockgen -source="./internal/repository/cache/user.go" -package=mockcache -destination="./internal/repository/cache/mocks/user.mock.go"
 	@mockgen -source="./internal/repository/cache/code.go" -package=mockcache -destination="./internal/repository/cache/mocks/code.mock.go"
 
+	@mockgen -source="./internal/service/sms/types.go" -package=mocksms -destination="./internal/service/sms/mocks/sms.mock.go"
+	@mockgen -source="./pkg/limiter/types.go" -package=mocklimitermock -destination="./pkg/limiter/mocks/limiter.mock.go"
+
+
 	@mockgen -package mockredis -destination "./internal/repository/cache/mockredis/redis.mock.go" github.com/redis/go-redis/v9 Cmdable
 	@go mod tidy
