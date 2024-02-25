@@ -3,6 +3,7 @@ package ioc
 import (
 	"github.com/Anwenya/GeekTime/webook/internal/web"
 	"github.com/Anwenya/GeekTime/webook/internal/web/middleware"
+	itoken "github.com/Anwenya/GeekTime/webook/internal/web/token"
 	"github.com/Anwenya/GeekTime/webook/pkg/ginx/middleware/ratelimit"
 	"github.com/Anwenya/GeekTime/webook/pkg/limiter"
 	"github.com/gin-gonic/gin"
@@ -21,12 +22,11 @@ func InitWebServer(
 	return server
 }
 
-func InitGinMiddlewares(redisClient redis.Cmdable) []gin.HandlerFunc {
+func InitGinMiddlewares(redisClient redis.Cmdable, th itoken.TokenHandler) []gin.HandlerFunc {
 	return []gin.HandlerFunc{
 		(&middleware.CorsMiddlewareBuilder{}).Cors(),
 		//ratelimit.NewSlideWindowBuilder(redisClient, time.Second, 1).Build(),
 		ratelimit.NewBuilder(limiter.NewRedisTokenBucketLimiter(redisClient, 10, 1)).Build(),
-		(&middleware.SessionMiddlewareBuilder{}).Session(),
-		(&middleware.LoginMiddlewareBuilder{}).CheckLogin(),
+		middleware.NewLoginTokenMiddlewareBuilder(th).CheckLogin(),
 	}
 }

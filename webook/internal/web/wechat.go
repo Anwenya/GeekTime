@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/Anwenya/GeekTime/webook/internal/service"
 	"github.com/Anwenya/GeekTime/webook/internal/service/oauth2/wechat"
+	itoken "github.com/Anwenya/GeekTime/webook/internal/web/token"
+
 	"github.com/Anwenya/GeekTime/webook/util"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -12,17 +14,22 @@ import (
 )
 
 type OAuth2WechatHandler struct {
-	tokenHandler
+	itoken.TokenHandler
 	s               wechat.Service
 	us              service.UserService
 	stateCookieName string
 }
 
-func NewOAuth2WechatHandler(s wechat.Service, us service.UserService) *OAuth2WechatHandler {
+func NewOAuth2WechatHandler(
+	s wechat.Service,
+	us service.UserService,
+	th itoken.TokenHandler,
+) *OAuth2WechatHandler {
 	return &OAuth2WechatHandler{
 		s:               s,
 		us:              us,
 		stateCookieName: "jwt-state",
+		TokenHandler:    th,
 	}
 }
 
@@ -79,9 +86,17 @@ func (oawh *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 			Msg:  "系统错误",
 			Code: 5,
 		})
+		return
 	}
 
-	oawh.setToken(ctx, &user)
+	err = oawh.SetLoginToken(ctx, user.Id)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Msg:  "系统错误",
+			Code: 5,
+		})
+		return
+	}
 	ctx.JSON(http.StatusOK, Result{
 		Msg: "OK",
 	})
