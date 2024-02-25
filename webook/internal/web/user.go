@@ -1,7 +1,6 @@
 package web
 
 import (
-	"github.com/Anwenya/GeekTime/webook/token"
 	"github.com/Anwenya/GeekTime/webook/util"
 	"log"
 	"net/http"
@@ -21,6 +20,7 @@ const (
 )
 
 type UserHandler struct {
+	tokenHandler
 	emailRexExp    *regexp.Regexp
 	passwordRexExp *regexp.Regexp
 	userService    service.UserService
@@ -299,19 +299,4 @@ func (userHandler *UserHandler) LoginWithSMS(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, Result{
 		Msg: "登录成功",
 	})
-}
-
-func (userHandler *UserHandler) setToken(ctx *gin.Context, user *domain.User) {
-	tokenString, _, err := token.TkMaker.CreateToken(
-		user.Id,
-		user.Email,
-		util.Config.AccessTokenDuration,
-		ctx.GetHeader("User-Agent"),
-	)
-	if err != nil {
-		log.Printf("创建token失败:%v", err)
-		ctx.String(http.StatusOK, "系统错误")
-		return
-	}
-	ctx.Header(util.Config.TokenKey, tokenString)
 }

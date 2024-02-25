@@ -19,7 +19,9 @@ func (loginMiddlewareBuilder *LoginMiddlewareBuilder) CheckLogin() gin.HandlerFu
 	gob.Register(time.Now())
 	return func(ctx *gin.Context) {
 		path := ctx.Request.URL.Path
-		if strings.HasPrefix(path, "/users/signup") || strings.HasPrefix(path, "/users/login") {
+		if strings.HasPrefix(path, "/users/signup") ||
+			strings.HasPrefix(path, "/users/login") ||
+			strings.HasPrefix(path, "/oauth2") {
 			return
 		}
 

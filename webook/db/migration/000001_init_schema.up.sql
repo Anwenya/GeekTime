@@ -5,6 +5,9 @@ CREATE TABLE `users` (
   `nickname` varchar(128),
   `birthday` bigint,
   `bio` varchar(4096),
+  `phone` varchar(16) UNIQUE,
+  `wechat_open_id` varchar(32) UNIQUE,
+  `wechat_union_id` varchar(32),
   `create_time` bigint,
   `update_time` bigint
 );

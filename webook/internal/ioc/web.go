@@ -9,10 +9,15 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func InitWebServer(middlewares []gin.HandlerFunc, userHandler *web.UserHandler) *gin.Engine {
+func InitWebServer(
+	middlewares []gin.HandlerFunc,
+	userHandler *web.UserHandler,
+	wechatHandler *web.OAuth2WechatHandler,
+) *gin.Engine {
 	server := gin.Default()
 	server.Use(middlewares...)
 	userHandler.RegisterRoutes(server)
+	wechatHandler.RegisterRoutes(server)
 	return server
 }
 

@@ -21,6 +21,7 @@ type UserDAO interface {
 	UpdateUserById(ctx context.Context, user User) error
 	FindUserById(ctx context.Context, uid int64) (User, error)
 	FindUserByPhone(ctx context.Context, phone string) (User, error)
+	FindUserByWechat(ctx context.Context, openId string) (User, error)
 }
 
 type GORMUserDAO struct {
@@ -77,14 +78,27 @@ func (gud *GORMUserDAO) FindUserByPhone(ctx context.Context, phone string) (User
 	return user, err
 }
 
+func (gud *GORMUserDAO) FindUserByWechat(ctx context.Context, openId string) (User, error) {
+	var user User
+	err := gud.db.WithContext(ctx).Where("wechat_open_id = ?", openId).First(&user).Error
+	return user, err
+}
+
 type User struct {
-	Id         int64          `gorm:"primaryKey,autoIncrement"`
-	Email      sql.NullString `gorm:"unique"`
-	Password   string
-	Nickname   string `gorm:"type=varchar(128)"`
-	Birthday   int64
-	Bio        string         `gorm:"type=varchar(4096)"`
-	Phone      sql.NullString `gorm:"unique"`
+	Id       int64          `gorm:"primaryKey,autoIncrement"`
+	Email    sql.NullString `gorm:"unique"`
+	Password string
+	Nickname string `gorm:"type=varchar(128)"`
+	Birthday int64
+	Bio      string         `gorm:"type=varchar(4096)"`
+	Phone    sql.NullString `gorm:"unique"`
+
+	// 1.同时使用 openId 和 unionId 就创建联合唯一索引
+	// 2.只用 openId 就在 openId 上创建唯一索引 或者 <openId,unionId>联合索引
+	// 3.只用 unionId 就在 unionId 上创建唯一索引 或者 <unionId,openId>联合索引
+	WechatOpenId  sql.NullString `gorm:"unique"`
+	WechatUnionId sql.NullString
+
 	CreateTime int64
 	UpdateTime int64
 }
