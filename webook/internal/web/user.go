@@ -1,8 +1,8 @@
 package web
 
 import (
+	"github.com/Anwenya/GeekTime/webook/config"
 	itoken "github.com/Anwenya/GeekTime/webook/internal/web/token"
-	"github.com/Anwenya/GeekTime/webook/util"
 	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"net/http"
@@ -151,7 +151,7 @@ func (userHandler *UserHandler) RefreshToken(ctx *gin.Context) {
 	tokenStr := userHandler.ExtractToken(ctx)
 	var rc itoken.RefreshClaims
 	token, err := jwt.ParseWithClaims(tokenStr, &rc, func(token *jwt.Token) (interface{}, error) {
-		return util.Config.TokenSecretKey, nil
+		return config.Config.SecretKey.Token, nil
 	})
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusUnauthorized)

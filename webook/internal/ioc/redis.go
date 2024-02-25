@@ -1,12 +1,12 @@
 package ioc
 
 import (
-	"github.com/Anwenya/GeekTime/webook/util"
+	"github.com/Anwenya/GeekTime/webook/config"
 	"github.com/redis/go-redis/v9"
 )
 
 func InitRedis() redis.Cmdable {
 	return redis.NewClient(&redis.Options{
-		Addr: util.Config.RedisAddress,
+		Addr: config.Config.Redis.Address,
 	})
 }

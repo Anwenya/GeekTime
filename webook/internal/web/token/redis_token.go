@@ -3,7 +3,7 @@ package token
 import (
 	"errors"
 	"fmt"
-	"github.com/Anwenya/GeekTime/webook/util"
+	"github.com/Anwenya/GeekTime/webook/config"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -73,7 +73,7 @@ func (rth *RedisTokenHandler) SetToken(ctx *gin.Context, uid int64, ssid string)
 		},
 	}
 	token := jwt.NewWithClaims(rth.signingMethod, uc)
-	tokenStr, err := token.SignedString(util.Config.TokenSecretKey)
+	tokenStr, err := token.SignedString(config.Config.SecretKey.Token)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (rth *RedisTokenHandler) setRefreshToken(ctx *gin.Context, uid int64, ssid 
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodES512, rc)
-	tokenStr, err := token.SignedString(util.Config.TokenSecretKey)
+	tokenStr, err := token.SignedString(config.Config.SecretKey.Token)
 	if err != nil {
 		return err
 	}

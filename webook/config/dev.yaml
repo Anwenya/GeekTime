@@ -1,0 +1,24 @@
+db:
+  mysql:
+    url: "root:root@tcp(webook-mysql-service:3308)/webook"
+    migrationUrl: "mysql://root:root@tcp(webook-mysql-service:3308)/webook"
+    migrationSourceUrl: "file://db/migration"
+
+redis:
+  #  address: "webook-redis-service:6380"
+  address: "192.168.133.128:6379"
+
+app:
+  httpServerAddress: "0.0.0.0:8081"
+
+duration:
+  session: 15m
+  cors: 12h
+  accessToken: 15m
+  refreshToken: 148h
+
+secretKey:
+  token: "cAtUc5znbkPR3chfEAvUgPhUvoUn9DxX"
+  session1: "cAtUc5znbkPRoopfEAvUgPhUvoUn9DxX"
+  session2: "cAtUc5znbkPR3chfEAvUgPhJLoUn9DxX"
+

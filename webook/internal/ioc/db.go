@@ -1,7 +1,7 @@
 package ioc
 
 import (
-	"github.com/Anwenya/GeekTime/webook/util"
+	"github.com/Anwenya/GeekTime/webook/config"
 	"github.com/golang-migrate/migrate/v4"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -10,7 +10,7 @@ import (
 )
 
 func InitDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open(util.Config.DBUrlMySQL),
+	db, err := gorm.Open(mysql.Open(config.Config.DB.MySQL.Url),
 		&gorm.Config{
 			Logger: logger.Default.LogMode(logger.Info),
 		})
@@ -25,8 +25,8 @@ func InitDB() *gorm.DB {
 
 func mysqlMigration() {
 	migration, err := migrate.New(
-		util.Config.MigrationSourceUrl,
-		util.Config.MigrationDBUrl,
+		config.Config.DB.MySQL.MigrationSourceUrl,
+		config.Config.DB.MySQL.MigrationUrl,
 	)
 	if err != nil {
 		log.Fatalf("数据库迁移失败:%v", err)

@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/Anwenya/GeekTime/webook/util"
+	"github.com/Anwenya/GeekTime/webook/config"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
@@ -18,10 +18,10 @@ func (sessionMiddlewareBuilder *SessionMiddlewareBuilder) Session() gin.HandlerF
 	store, err := redis.NewStore(
 		8,
 		"tcp",
-		util.Config.RedisAddress,
+		config.Config.Redis.Address,
 		"",
-		util.Config.SessionSecretKey1,
-		util.Config.SessionSecretKey2,
+		config.Config.SecretKey.Session1,
+		config.Config.SecretKey.Session2,
 	)
 	if err != nil {
 		log.Fatalf("session中间件初始化失败%v", err)

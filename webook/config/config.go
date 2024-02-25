@@ -1,31 +1,44 @@
-package util
+package config
 
 import (
 	"github.com/mitchellh/mapstructure"
+	"github.com/spf13/viper"
 	"log"
 	"path"
 	"reflect"
 	"runtime"
 	"time"
-
-	"github.com/spf13/viper"
 )
 
 type config struct {
-	ENVIRONMENT          string        `mapstructure:"ENVIRONMENT"`
-	DBUrlMySQL           string        `mapstructure:"DB_URL_MYSQL"`
-	MigrationDBUrl       string        `mapstructure:"MIGRATION_DB_URL"`
-	MigrationSourceUrl   string        `mapstructure:"MIGRATION_SOURCE_URL"`
-	HTTPServerAddress    string        `mapstructure:"HTTP_SERVER_ADDRESS"`
-	RedisAddress         string        `mapstructure:"REDIS_ADDRESS"`
-	SessionDuration      time.Duration `mapstructure:"SESSION_DURATION"`
-	CorsDuration         time.Duration `mapstructure:"CORS_DURATION"`
-	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
-	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
-	TokenKey             string        `mapstructure:"TOKEN_KEY"`
-	TokenSecretKey       string        `mapstructure:"TOKEN_SECRET_KEY"`
-	SessionSecretKey1    []byte        `mapstructure:"SESSION_SECRET_KEY1"`
-	SessionSecretKey2    []byte        `mapstructure:"SESSION_SECRET_KEY2"`
+	DB struct {
+		MySQL struct {
+			Url                string `yaml:"url"`
+			MigrationUrl       string `yaml:"migrationUrl"`
+			MigrationSourceUrl string `yaml:"migrationSourceUrl"`
+		} `yaml:"mysql"`
+	} `yaml:"db"`
+
+	Redis struct {
+		Address string `yaml:"address"`
+	} `yaml:"redis"`
+
+	App struct {
+		HttpServerAddress string `yaml:"httpServerAddress"`
+	} `yaml:"app"`
+
+	Duration struct {
+		Session      time.Duration `yaml:"session"`
+		Cors         time.Duration `yaml:"cors"`
+		AccessToken  time.Duration `yaml:"accessToken"`
+		RefreshToken time.Duration `yaml:"refreshToken"`
+	} `yaml:"duration"`
+
+	SecretKey struct {
+		Token    string `yaml:"token"`
+		Session1 []byte `yaml:"session1"`
+		Session2 []byte `yaml:"session2"`
+	} `yaml:"secretKey"`
 }
 
 func stringToByteSliceHookFunc() mapstructure.DecodeHookFunc {
@@ -48,11 +61,11 @@ func stringToByteSliceHookFunc() mapstructure.DecodeHookFunc {
 
 func loadConfig(path string) (config *config, err error) {
 	viper.AddConfigPath(path)
-	log.Printf("读取配置文件:%s/app.env", path)
+	log.Printf("读取配置文件:%s/dev.yaml", path)
 	// 配置文件名称
-	viper.SetConfigName("app")
+	viper.SetConfigName("dev")
 	// 配置文件格式
-	viper.SetConfigType("env")
+	viper.SetConfigType("yaml")
 	// 环境变量中的值会覆盖配置文件中的同名值
 	viper.AutomaticEnv()
 	optDecode := viper.DecodeHook(
@@ -77,7 +90,7 @@ func init() {
 	var err error
 	// 以当前文件为基准的相对路径
 	_, filename, _, _ := runtime.Caller(0)
-	Config, err = loadConfig(path.Dir(path.Dir(filename)))
+	Config, err = loadConfig(path.Dir(filename))
 	if err != nil {
 		log.Fatalf("配置文件加载失败:%v", err)
 	}

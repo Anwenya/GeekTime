@@ -2,11 +2,11 @@ package web
 
 import (
 	"fmt"
+	"github.com/Anwenya/GeekTime/webook/config"
 	"github.com/Anwenya/GeekTime/webook/internal/service"
 	"github.com/Anwenya/GeekTime/webook/internal/service/oauth2/wechat"
 	itoken "github.com/Anwenya/GeekTime/webook/internal/web/token"
 
-	"github.com/Anwenya/GeekTime/webook/util"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	uuid "github.com/lithammer/shortuuid/v4"
@@ -112,7 +112,7 @@ func (oawh *OAuth2WechatHandler) verifyState(ctx *gin.Context) error {
 
 	var sc StateClaims
 	_, err = jwt.ParseWithClaims(ck, &sc, func(token *jwt.Token) (interface{}, error) {
-		return util.Config.TokenSecretKey, nil
+		return config.Config.SecretKey.Token, nil
 	})
 
 	if err != nil {
@@ -132,7 +132,7 @@ func (oawh *OAuth2WechatHandler) setStateCookie(ctx *gin.Context, state string) 
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES512, claims)
-	tokenStr, err := token.SignedString(util.Config.TokenSecretKey)
+	tokenStr, err := token.SignedString(config.Config.SecretKey.Token)
 	if err != nil {
 		return err
 	}

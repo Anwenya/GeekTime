@@ -1,8 +1,8 @@
 package middleware
 
 import (
+	"github.com/Anwenya/GeekTime/webook/config"
 	itoken "github.com/Anwenya/GeekTime/webook/internal/web/token"
-	"github.com/Anwenya/GeekTime/webook/util"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
@@ -31,7 +31,7 @@ func (ltmb *LoginTokenMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
 		tokenStr := ltmb.ExtractToken(ctx)
 		var uc itoken.UserClaims
 		token, err := jwt.ParseWithClaims(tokenStr, &uc, func(t *jwt.Token) (interface{}, error) {
-			return util.Config.TokenSecretKey, nil
+			return config.Config.SecretKey.Token, nil
 		})
 
 		// 非法

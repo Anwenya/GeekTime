@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/Anwenya/GeekTime/webook/util"
+	"github.com/Anwenya/GeekTime/webook/config"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"strings"
@@ -23,6 +23,6 @@ func (corsMiddlewareBuilder *CorsMiddlewareBuilder) Cors() gin.HandlerFunc {
 			}
 			return strings.Contains(origin, "your_company.com")
 		},
-		MaxAge: util.Config.CorsDuration,
+		MaxAge: config.Config.Duration.Cors,
 	})
 }

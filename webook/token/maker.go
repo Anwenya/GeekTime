@@ -1,7 +1,7 @@
 package token
 
 import (
-	"github.com/Anwenya/GeekTime/webook/util"
+	"github.com/Anwenya/GeekTime/webook/config"
 	"log"
 	"time"
 )
@@ -19,7 +19,7 @@ var TkMaker Maker
 
 func init() {
 	var err error
-	TkMaker, err = NewPasetoMaker(util.Config.TokenSecretKey)
+	TkMaker, err = NewPasetoMaker(config.Config.SecretKey.Token)
 	if err != nil {
 		log.Fatalf("初始化tokenMaker失败:%v", err)
 	}
