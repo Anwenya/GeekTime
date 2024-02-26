@@ -10,7 +10,11 @@ import (
 type CorsMiddlewareBuilder struct {
 }
 
-func (corsMiddlewareBuilder *CorsMiddlewareBuilder) Cors() gin.HandlerFunc {
+func NewCorsMiddlewareBuilder() *CorsMiddlewareBuilder {
+	return &CorsMiddlewareBuilder{}
+}
+
+func (corsMiddlewareBuilder *CorsMiddlewareBuilder) Build() gin.HandlerFunc {
 
 	return cors.New(cors.Config{
 		AllowCredentials: true,

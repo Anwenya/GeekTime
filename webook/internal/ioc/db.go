@@ -2,39 +2,54 @@ package ioc
 
 import (
 	"github.com/Anwenya/GeekTime/webook/config"
+	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"github.com/golang-migrate/migrate/v4"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-	"log"
+	glogger "gorm.io/gorm/logger"
 )
 
-func InitDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open(config.Config.DB.MySQL.Url),
+func InitDB(l logger.LoggerV1) *gorm.DB {
+	db, err := gorm.Open(
+		mysql.Open(config.Config.DB.MySQL.Url),
 		&gorm.Config{
-			Logger: logger.Default.LogMode(logger.Info),
+			Logger: glogger.New(
+				gormLoggerFunc(l.Debug),
+				glogger.Config{
+					// 慢查询
+					SlowThreshold: 0,
+					LogLevel:      glogger.Info,
+				}),
 		})
 	if err != nil {
-		log.Fatalf("数据库连接失败:%v", err)
+		l.Error("数据库连接失败")
+		panic(any(err))
 	}
-
-	log.Println("数据库连接成功")
-	mysqlMigration()
+	l.Info("数据库连接成功")
+	mysqlMigration(l)
 	return db
 }
 
-func mysqlMigration() {
+func mysqlMigration(l logger.LoggerV1) {
 	migration, err := migrate.New(
 		config.Config.DB.MySQL.MigrationSourceUrl,
 		config.Config.DB.MySQL.MigrationUrl,
 	)
 	if err != nil {
-		log.Fatalf("数据库迁移失败:%v", err)
+		l.Error("数据库迁移失败")
+		panic(any(err))
 	}
 
 	if err = migration.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Fatalf("数据库迁移失败:%v", err)
+		l.Error("数据库迁移失败")
+		panic(any(err))
 	}
 
-	log.Println("数据库迁移成功")
+	l.Info("数据库迁移成功")
+}
+
+type gormLoggerFunc func(msg string, fields ...logger.Field)
+
+func (glf gormLoggerFunc) Printf(s string, i ...interface{}) {
+	glf(s, logger.Field{Key: "args", Val: i})
 }

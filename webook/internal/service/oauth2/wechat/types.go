@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Anwenya/GeekTime/webook/internal/domain"
+	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"net/http"
 	"net/url"
 )
@@ -20,19 +21,23 @@ type service struct {
 	appId     string
 	appSecret string
 	client    *http.Client
+	l         logger.LoggerV1
 }
 
-func NewService(appId string, appSecret string) Service {
+func NewService(appId string, appSecret string, l logger.LoggerV1) Service {
 	return &service{
 		appId:     appId,
 		appSecret: appSecret,
 		client:    http.DefaultClient,
+		l:         l,
 	}
 }
 
 func (s *service) VerifyCode(ctx context.Context, code string) (domain.WechatInfo, error) {
-	accessTokenUrl := fmt.Sprintf(`https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code`,
-		s.appId, s.appSecret, code)
+	accessTokenUrl := fmt.Sprintf(
+		`https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code`,
+		s.appId, s.appSecret, code,
+	)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, accessTokenUrl, nil)
 	if err != nil {
 		return domain.WechatInfo{}, err

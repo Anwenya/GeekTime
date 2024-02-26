@@ -19,7 +19,7 @@ func NewLoginTokenMiddlewareBuilder(th itoken.TokenHandler) *LoginTokenMiddlewar
 	}
 }
 
-func (ltmb *LoginTokenMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
+func (ltmb *LoginTokenMiddlewareBuilder) Build() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		path := ctx.Request.URL.Path
 		if strings.HasPrefix(path, "/users/signup") ||

@@ -28,8 +28,9 @@ import (
 func InitWebServer() *gin.Engine {
 	cmdable := ioc.InitRedis()
 	tokenHandler := token.NewRedisTokenHandler(cmdable)
-	v := ioc.InitGinMiddlewares(cmdable, tokenHandler)
-	db := ioc.InitDB()
+	loggerV1 := ioc.InitLogger()
+	v := ioc.InitGinMiddlewares(cmdable, tokenHandler, loggerV1)
+	db := ioc.InitDB(loggerV1)
 	userDAO := dao.NewUserDAO(db)
 	userCache := cache.NewUserCache(cmdable)
 	userRepository := repository.NewCachedUserRepository(userDAO, userCache)
@@ -39,7 +40,7 @@ func InitWebServer() *gin.Engine {
 	smService := ioc.InitSMSService()
 	codeService := service.NewCodeService(codeRepository, smService)
 	userHandler := web.NewUserHandler(userService, codeService, tokenHandler)
-	wechatService := ioc.InitWechatService()
+	wechatService := ioc.InitWechatService(loggerV1)
 	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, userService, tokenHandler)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler)
 	return engine
