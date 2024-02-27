@@ -3,6 +3,7 @@ package tencent
 import (
 	"context"
 	"fmt"
+	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	sms "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms/v20210111" // 引入sms
 )
@@ -11,6 +12,7 @@ type Service struct {
 	client   *sms.Client
 	appId    *string
 	signName *string
+	l        logger.LoggerV1
 }
 
 func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
@@ -26,6 +28,10 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 	request.TemplateParamSet = common.StringPtrs(args)
 	request.PhoneNumberSet = common.StringPtrs(numbers)
 	response, err := s.client.SendSms(request)
+	s.l.Debug("腾讯短信",
+		logger.Field{Key: "req", Val: request},
+		logger.Field{Key: "resp", Val: response},
+	)
 
 	// 处理异常
 	if err != nil {
@@ -46,10 +52,11 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 	return nil
 }
 
-func NewService(client *sms.Client, appId string, signName string) *Service {
+func NewService(client *sms.Client, appId string, signName string, l logger.LoggerV1) *Service {
 	return &Service{
 		client:   client,
 		appId:    &appId,
 		signName: &signName,
+		l:        l,
 	}
 }

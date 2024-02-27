@@ -34,6 +34,7 @@ func NewService(appId string, appSecret string, l logger.LoggerV1) Service {
 }
 
 func (s *service) VerifyCode(ctx context.Context, code string) (domain.WechatInfo, error) {
+
 	accessTokenUrl := fmt.Sprintf(
 		`https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code`,
 		s.appId, s.appSecret, code,
@@ -43,6 +44,10 @@ func (s *service) VerifyCode(ctx context.Context, code string) (domain.WechatInf
 		return domain.WechatInfo{}, err
 	}
 	httpResp, err := s.client.Do(req)
+	s.l.Debug("微信登录",
+		logger.Field{Key: "req", Val: req},
+		logger.Field{Key: "resp", Val: httpResp},
+	)
 	if err != nil {
 		return domain.WechatInfo{}, err
 	}
@@ -64,7 +69,9 @@ func (s *service) VerifyCode(ctx context.Context, code string) (domain.WechatInf
 
 func (s *service) AuthURL(ctx context.Context, state string) (string, error) {
 	const authURLPattern = `https://open.weixin.qq.com/connect/qrconnect?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_login&state=%s#wechat_redirect`
-	return fmt.Sprintf(authURLPattern, s.appId, redirectURL, state), nil
+	authUrl := fmt.Sprintf(authURLPattern, s.appId, redirectURL, state)
+	s.l.Debug("微信登录", logger.Field{Key: "url", Val: authUrl})
+	return authUrl, nil
 }
 
 type Result struct {
