@@ -25,6 +25,7 @@ func InitWebServer() *gin.Engine {
 
 		// dao
 		dao.NewUserDAO,
+		dao.NewArticleGORMDAO,
 
 		// 缓存
 		cache.NewCodeCache,
@@ -33,15 +34,18 @@ func InitWebServer() *gin.Engine {
 		// repo
 		repository.NewCachedCodeRepository,
 		repository.NewCachedUserRepository,
+		repository.NewCachedArticleRepository,
 
 		// service
 		ioc.InitSMSService,
 		ioc.InitWechatService,
 		service.NewCodeService,
 		service.NewUserService,
+		service.NewArticleService,
 
 		// handler
 		web.NewUserHandler,
+		web.NewArticleHandler,
 		web.NewOAuth2WechatHandler,
 		itoken.NewRedisTokenHandler,
 		ioc.InitGinMiddlewares,
