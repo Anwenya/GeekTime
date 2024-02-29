@@ -77,14 +77,16 @@ func (h *ArticleHandler) Publish(ctx *gin.Context) {
 	}
 
 	uc := ctx.MustGet("user").(token.UserClaims)
-	id, err := h.svc.Publish(ctx, domain.Article{
-		Id:      req.Id,
-		Title:   req.Title,
-		Content: req.Content,
-		Author: domain.Author{
-			Id: uc.Uid,
-		},
-	})
+	id, err := h.svc.Publish(
+		ctx,
+		domain.Article{
+			Id:      req.Id,
+			Title:   req.Title,
+			Content: req.Content,
+			Author: domain.Author{
+				Id: uc.Uid,
+			},
+		})
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Msg:  "系统错误",
@@ -111,17 +113,23 @@ func (h *ArticleHandler) Withdraw(ctx *gin.Context) {
 	uc := ctx.MustGet("user").(token.UserClaims)
 	err := h.svc.Withdraw(ctx, uc.Uid, req.Id)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
-			Msg:  "系统错误",
-			Code: 5,
-		})
+		ctx.JSON(
+			http.StatusOK,
+			Result{
+				Msg:  "系统错误",
+				Code: 5,
+			},
+		)
 		h.l.Error("撤回文章失败",
 			logger.Int64("uid", uc.Uid),
 			logger.Int64("aid", req.Id),
 			logger.Error(err))
 		return
 	}
-	ctx.JSON(http.StatusOK, Result{
-		Msg: "OK",
-	})
+	ctx.JSON(
+		http.StatusOK,
+		Result{
+			Msg: "OK",
+		},
+	)
 }
