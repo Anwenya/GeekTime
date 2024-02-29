@@ -4,6 +4,8 @@ import (
 	"github.com/Anwenya/GeekTime/webook/config"
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/mysql"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	glogger "gorm.io/gorm/logger"

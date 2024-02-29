@@ -35,9 +35,18 @@ k8s-delete-app:
 mock:
 	@mockgen -source="./internal/service/user.go" -package=mockservice -destination="./internal/service/mocks/user.mock.go"
 	@mockgen -source="./internal/service/code.go" -package=mockservice -destination="./internal/service/mocks/code.mock.go"
+	@mockgen -source="./internal/service/article.go" -package=mockservice -destination="./internal/service/mocks/article.mock.go"
+
 	@mockgen -source="./internal/repository/code.go" -package=mockrepository -destination="./internal/repository/mocks/code.mock.go"
 	@mockgen -source="./internal/repository/user.go" -package=mockrepository -destination="./internal/repository/mocks/user.mock.go"
+	@mockgen -source="./internal/repository/article.go" -package=mockrepository -destination="./internal/repository/mocks/article.mock.go"
+	@mockgen -source="./internal/repository/article_author.go" -package=mockrepository -destination="./internal/repository/mocks/article_author.mock.go"
+	@mockgen -source="./internal/repository/article_reader.go" -package=mockrepository -destination="./internal/repository/mocks/article_reader.mock.go"
+
 	@mockgen -source="./internal/repository/dao/user.go" -package=mockdao -destination="./internal/repository/dao/mocks/user.mock.go"
+	@mockgen -source="./internal/repository/dao/article_reader.go" -package=mockdao -destination="./internal/repository/dao/mocks/article_reader.mock.go"
+	@mockgen -source="./internal/repository/dao/article_author.go" -package=mockdao -destination="./internal/repository/dao/mocks/article_author.mock.go"
+
 	@mockgen -source="./internal/repository/cache/user.go" -package=mockcache -destination="./internal/repository/cache/mocks/user.mock.go"
 	@mockgen -source="./internal/repository/cache/code.go" -package=mockcache -destination="./internal/repository/cache/mocks/code.mock.go"
 
