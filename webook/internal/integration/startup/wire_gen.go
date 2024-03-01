@@ -45,11 +45,9 @@ func InitWebServer() *gin.Engine {
 	return engine
 }
 
-func InitArticleHandler() *web.ArticleHandler {
+func InitArticleHandler(dao2 dao.ArticleDAO) *web.ArticleHandler {
 	loggerV1 := InitLogger()
-	db := InitDB(loggerV1)
-	articleDAO := dao.NewArticleGORMDAO(db)
-	articleRepository := repository.NewCachedArticleRepository(articleDAO)
+	articleRepository := repository.NewCachedArticleRepository(dao2)
 	articleService := service.NewArticleService(articleRepository)
 	articleHandler := web.NewArticleHandler(loggerV1, articleService)
 	return articleHandler

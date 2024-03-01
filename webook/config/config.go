@@ -17,6 +17,10 @@ type config struct {
 			MigrationUrl       string `yaml:"migrationUrl"`
 			MigrationSourceUrl string `yaml:"migrationSourceUrl"`
 		} `yaml:"mysql"`
+
+		Mongo struct {
+			Url string `yaml:"url"`
+		} `yaml:"mongo"`
 	} `yaml:"db"`
 
 	Redis struct {

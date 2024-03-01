@@ -3,6 +3,10 @@ package dao
 import (
 	"context"
 	"errors"
+	"github.com/bwmarrin/snowflake"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"time"
@@ -163,7 +167,6 @@ func (a *ArticleGORMDAO) SyncV1(ctx context.Context, art Article) (int64, error)
 	now := time.Now().UnixMilli()
 	pa := PublishedArticle(art)
 	pa.CreateTime = now
-	pa.UpdateTime = now
 
 	// 插入或者更新
 	err = tx.Clauses(
@@ -192,13 +195,13 @@ func (a *ArticleGORMDAO) SyncV1(ctx context.Context, art Article) (int64, error)
 }
 
 type Article struct {
-	Id         int64  `gorm:"primaryKey,autoIncrement"`
-	Title      string `gorm:"type=varchar(4096)"`
-	Content    string `gorm:"type=BLOB"`
-	AuthorId   int64  `gorm:"index"`
-	Status     uint8
-	CreateTime int64
-	UpdateTime int64
+	Id         int64  `gorm:"primaryKey,autoIncrement" bson:"id,omitempty"`
+	Title      string `gorm:"type=varchar(4096)" bson:"title,omitempty"`
+	Content    string `gorm:"type=BLOB" bson:"content,omitempty"`
+	AuthorId   int64  `gorm:"index" bson:"author_id,omitempty"`
+	Status     uint8  `bson:"status,omitempty"`
+	CreateTime int64  `bson:"create_time,omitempty"`
+	UpdateTime int64  `bson:"update_time,omitempty"`
 }
 
 func (Article) TableName() string {
@@ -210,4 +213,127 @@ type PublishedArticle Article
 
 func (PublishedArticle) TableName() string {
 	return "published_articles"
+}
+
+// ArticleMongoDBDAO mongodb版本
+type ArticleMongoDBDAO struct {
+	sf      *snowflake.Node
+	col     *mongo.Collection
+	liveCol *mongo.Collection
+}
+
+func NewArticleMongoDBDAO(db *mongo.Database, sf *snowflake.Node) ArticleDAO {
+	return &ArticleMongoDBDAO{
+		sf:      sf,
+		liveCol: db.Collection("published_articles"),
+		col:     db.Collection("articles"),
+	}
+}
+
+// Insert 插入到作者集合
+func (a *ArticleMongoDBDAO) Insert(ctx context.Context, art Article) (int64, error) {
+	now := time.Now().UnixMilli()
+	art.CreateTime = now
+	art.UpdateTime = now
+	art.Id = a.sf.Generate().Int64()
+	_, err := a.col.InsertOne(ctx, &art)
+	return art.Id, err
+}
+
+func (a *ArticleMongoDBDAO) UpdateById(ctx context.Context, art Article) error {
+	now := time.Now().UnixMilli()
+	filter := bson.D{
+		bson.E{Key: "id", Value: art.Id},
+		bson.E{Key: "author_id", Value: art.AuthorId},
+	}
+
+	set := bson.D{
+		bson.E{
+			Key: "$set",
+			Value: bson.M{
+				"title":       art.Title,
+				"content":     art.Content,
+				"status":      art.Status,
+				"update_time": now,
+			},
+		},
+	}
+
+	res, err := a.col.UpdateOne(ctx, filter, set)
+	if err != nil {
+		return err
+	}
+	if res.ModifiedCount == 0 {
+		return errors.New("要更新的文章不存在或者创作者不匹配")
+	}
+	return nil
+}
+
+func (a *ArticleMongoDBDAO) Sync(ctx context.Context, art Article) (int64, error) {
+	var (
+		id  = art.Id
+		err error
+	)
+	if id > 0 {
+		// 已经存在id则为更新操作
+		err = a.UpdateById(ctx, art)
+	} else {
+		// 新建文章是没有id的
+		id, err = a.Insert(ctx, art)
+	}
+	if err != nil {
+		return 0, err
+	}
+	// 更新或者新建成功后同步到读者表
+	art.Id = id
+	now := time.Now().UnixMilli()
+	art.UpdateTime = now
+	// 插入或者更新
+	filter := bson.D{
+		bson.E{Key: "id", Value: art.Id},
+		bson.E{Key: "author_id", Value: art.AuthorId},
+	}
+
+	set := bson.D{
+		bson.E{Key: "$set", Value: art},
+		bson.E{
+			Key: "$setOnInsert",
+			Value: bson.D{
+				bson.E{Key: "create_time", Value: now},
+			},
+		},
+	}
+
+	// 如果设置为true 则在没有文档与查询条件匹配时创建新文档 默认的 value 是false
+	_, err = a.liveCol.UpdateOne(ctx, filter, set, options.Update().SetUpsert(true))
+
+	return id, err
+}
+
+func (a *ArticleMongoDBDAO) SyncStatus(ctx context.Context, uid int64, id int64, status uint8) error {
+	now := time.Now().UnixMilli()
+
+	filter := bson.D{
+		bson.E{Key: "id", Value: id},
+		bson.E{Key: "author_id", Value: uid},
+	}
+
+	sets := bson.D{
+		bson.E{
+			Key: "$set",
+			Value: bson.D{
+				bson.E{Key: "status", Value: status},
+				bson.E{Key: "update_time", Value: now},
+			},
+		},
+	}
+	res, err := a.col.UpdateOne(ctx, filter, sets)
+	if err != nil {
+		return err
+	}
+	if res.ModifiedCount != 1 {
+		return errors.New("id不存在或者创作者不匹配")
+	}
+	_, err = a.liveCol.UpdateOne(ctx, filter, sets)
+	return err
 }

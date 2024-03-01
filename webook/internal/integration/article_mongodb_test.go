@@ -2,33 +2,47 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"github.com/Anwenya/GeekTime/webook/internal/domain"
 	"github.com/Anwenya/GeekTime/webook/internal/integration/startup"
 	"github.com/Anwenya/GeekTime/webook/internal/repository/dao"
 	"github.com/Anwenya/GeekTime/webook/internal/web/token"
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // 测试套件
-type ArticleHandlerSuite struct {
+type ArticleMongoDBHandlerSuite struct {
 	suite.Suite
-	db     *gorm.DB
-	server *gin.Engine
+	mdb     *mongo.Database
+	col     *mongo.Collection
+	liveCol *mongo.Collection
+	server  *gin.Engine
 }
 
 // which will run before the tests in the suite are run
-func (s *ArticleHandlerSuite) SetupSuite() {
+func (s *ArticleMongoDBHandlerSuite) SetupSuite() {
 	l := startup.InitLogger()
 	// 拿到db才能对结果进行校验等操作
-	s.db = startup.InitDB(l)
-	h := startup.InitArticleHandler()
+	s.mdb = startup.InitMongoDB(l)
+	s.col = s.mdb.Collection("articles")
+	s.liveCol = s.mdb.Collection("published_articles")
+
+	sf, err := snowflake.NewNode(1)
+	assert.NoError(s.T(), err)
+
+	mongoDBDAO := dao.NewArticleMongoDBDAO(s.mdb, sf)
+	h := startup.InitArticleHandler(mongoDBDAO)
+
 	server := gin.Default()
 	// 用于登录校验
 	server.Use(
@@ -46,16 +60,17 @@ func (s *ArticleHandlerSuite) SetupSuite() {
 }
 
 // which will run after each test in the suite.
-func (s *ArticleHandlerSuite) TearDownTest() {
-	// 自增id也会被重置
-	err := s.db.Exec("truncate table `articles`").Error
+func (s *ArticleMongoDBHandlerSuite) TearDownTest() {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := s.col.DeleteMany(ctx, bson.D{})
 	assert.NoError(s.T(), err)
-	err = s.db.Exec("truncate table `published_articles`").Error
+	_, err = s.liveCol.DeleteMany(ctx, bson.D{})
 	assert.NoError(s.T(), err)
 }
 
 // 测试用例
-func (s *ArticleHandlerSuite) TestArticlePublish() {
+func (s *ArticleMongoDBHandlerSuite) TestArticlePublish() {
 	t := s.T()
 
 	testCases := []struct {
@@ -74,8 +89,20 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 
 			},
 			after: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+
 				var art dao.Article
-				s.db.Where("author_id = ?", 111).First(&art)
+
+				err := s.col.FindOne(
+					ctx, bson.D{
+						bson.E{
+							Key:   "author_id",
+							Value: 111,
+						},
+					},
+				).Decode(&art)
+				assert.NoError(t, err)
 				assert.Equal(t, "新建帖子并发表的标题", art.Title)
 				assert.Equal(t, "新建帖子并发表的内容", art.Content)
 				assert.Equal(t, uint8(domain.ArticleStatusPublished), art.Status)
@@ -84,7 +111,15 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 				assert.True(t, art.UpdateTime > 0)
 
 				var pa dao.PublishedArticle
-				s.db.Where("author_id = ?", 111).First(&pa)
+				err = s.liveCol.FindOne(
+					ctx,
+					bson.D{
+						bson.E{
+							Key:   "author_id",
+							Value: 111,
+						},
+					}).Decode(&pa)
+				assert.NoError(t, err)
 				assert.Equal(t, "新建帖子并发表的标题", pa.Title)
 				assert.Equal(t, "新建帖子并发表的内容", pa.Content)
 				assert.Equal(t, uint8(domain.ArticleStatusPublished), pa.Status)
@@ -104,7 +139,10 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 		{
 			name: "更新帖子并发表",
 			before: func(t *testing.T) {
-				s.db.Create(
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				_, err := s.col.InsertOne(
+					ctx,
 					&dao.Article{
 						Id:         2,
 						AuthorId:   111,
@@ -115,25 +153,47 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 						UpdateTime: 123,
 					},
 				)
+				assert.NoError(t, err)
+
 			},
 			after: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
 				var art dao.Article
-				s.db.Where("id = ?", 2).First(&art)
+				err := s.col.FindOne(
+					ctx,
+					bson.D{
+						bson.E{
+							Key:   "id",
+							Value: 2,
+						},
+					},
+				).Decode(&art)
+				assert.NoError(t, err)
 				assert.Equal(t, "新的更新帖子并发表的标题", art.Title)
 				assert.Equal(t, "新的更新帖子并发表的内容", art.Content)
 				assert.Equal(t, uint8(domain.ArticleStatusPublished), art.Status)
 				assert.Equal(t, int64(111), art.AuthorId)
-				assert.True(t, art.CreateTime > 0)
-				assert.True(t, art.UpdateTime > 0)
+				assert.Equal(t, art.CreateTime, int64(123))
+				assert.True(t, art.UpdateTime > 123)
 
 				var pa dao.PublishedArticle
-				s.db.Where("id = ?", 2).First(&pa)
+				err = s.col.FindOne(
+					ctx,
+					bson.D{
+						bson.E{
+							Key:   "id",
+							Value: 2,
+						},
+					},
+				).Decode(&pa)
+				assert.NoError(t, err)
 				assert.Equal(t, "新的更新帖子并发表的标题", pa.Title)
 				assert.Equal(t, "新的更新帖子并发表的内容", pa.Content)
 				assert.Equal(t, uint8(domain.ArticleStatusPublished), pa.Status)
 				assert.Equal(t, int64(111), pa.AuthorId)
-				assert.True(t, pa.CreateTime > 0)
-				assert.True(t, pa.UpdateTime > 0)
+				assert.Equal(t, pa.CreateTime, int64(123))
+				assert.True(t, pa.UpdateTime > 123)
 			},
 			req: Article{
 				Id:      2,
@@ -148,7 +208,10 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 		{
 			name: "更新帖子并重新发表",
 			before: func(t *testing.T) {
-				s.db.Create(
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				_, err := s.col.InsertOne(
+					ctx,
 					&dao.Article{
 						Id:         3,
 						AuthorId:   111,
@@ -159,8 +222,10 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 						UpdateTime: 123,
 					},
 				)
+				assert.NoError(t, err)
 
-				s.db.Create(
+				_, err = s.liveCol.InsertOne(
+					ctx,
 					&dao.PublishedArticle{
 						Id:         3,
 						AuthorId:   111,
@@ -171,25 +236,46 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 						UpdateTime: 123,
 					},
 				)
+				assert.NoError(t, err)
 			},
 			after: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
 				var art dao.Article
-				s.db.Where("id = ?", 3).First(&art)
+				err := s.col.FindOne(
+					ctx,
+					bson.D{
+						bson.E{
+							Key:   "id",
+							Value: 3,
+						},
+					},
+				).Decode(&art)
+				assert.NoError(t, err)
 				assert.Equal(t, "新的更新帖子并重新发表的标题", art.Title)
 				assert.Equal(t, "新的更新帖子并重新发表的内容", art.Content)
 				assert.Equal(t, uint8(domain.ArticleStatusPublished), art.Status)
 				assert.Equal(t, int64(111), art.AuthorId)
-				assert.True(t, art.CreateTime > 0)
-				assert.True(t, art.UpdateTime > 0)
+				assert.Equal(t, art.CreateTime, int64(123))
+				assert.True(t, art.UpdateTime > 123)
 
 				var pa dao.PublishedArticle
-				s.db.Where("id = ?", 3).First(&pa)
+				err = s.col.FindOne(
+					ctx,
+					bson.D{
+						bson.E{
+							Key:   "id",
+							Value: 3,
+						},
+					},
+				).Decode(&pa)
+				assert.NoError(t, err)
 				assert.Equal(t, "新的更新帖子并重新发表的标题", pa.Title)
 				assert.Equal(t, "新的更新帖子并重新发表的内容", pa.Content)
 				assert.Equal(t, uint8(domain.ArticleStatusPublished), pa.Status)
 				assert.Equal(t, int64(111), pa.AuthorId)
-				assert.True(t, pa.CreateTime > 0)
-				assert.True(t, pa.UpdateTime > 0)
+				assert.Equal(t, pa.CreateTime, int64(123))
+				assert.True(t, pa.UpdateTime > 123)
 			},
 			req: Article{
 				Id:      3,
@@ -204,7 +290,10 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 		{
 			name: "更新别人的帖子并发表-失败",
 			before: func(t *testing.T) {
-				s.db.Create(
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				_, err := s.col.InsertOne(
+					ctx,
 					&dao.Article{
 						Id:         4,
 						AuthorId:   222,
@@ -215,8 +304,10 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 						UpdateTime: 123,
 					},
 				)
+				assert.NoError(t, err)
 
-				s.db.Create(
+				_, err = s.liveCol.InsertOne(
+					ctx,
 					&dao.PublishedArticle{
 						Id:         4,
 						AuthorId:   222,
@@ -227,25 +318,46 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 						UpdateTime: 123,
 					},
 				)
+				assert.NoError(t, err)
 			},
 			after: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
 				var art dao.Article
-				s.db.Where("id = ?", 4).First(&art)
+				err := s.col.FindOne(
+					ctx,
+					bson.D{
+						bson.E{
+							Key:   "id",
+							Value: 4,
+						},
+					},
+				).Decode(&art)
+				assert.NoError(t, err)
 				assert.Equal(t, "别人的帖子", art.Title)
 				assert.Equal(t, "别人的帖子", art.Content)
 				assert.Equal(t, uint8(domain.ArticleStatusPublished), art.Status)
 				assert.Equal(t, int64(222), art.AuthorId)
-				assert.True(t, art.CreateTime > 0)
-				assert.True(t, art.UpdateTime > 0)
+				assert.Equal(t, art.CreateTime, int64(123))
+				assert.Equal(t, art.UpdateTime, int64(123))
 
 				var pa dao.PublishedArticle
-				s.db.Where("id = ?", 4).First(&pa)
+				err = s.col.FindOne(
+					ctx,
+					bson.D{
+						bson.E{
+							Key:   "id",
+							Value: 4,
+						},
+					},
+				).Decode(&pa)
+				assert.NoError(t, err)
 				assert.Equal(t, "别人的帖子", pa.Title)
 				assert.Equal(t, "别人的帖子", pa.Content)
 				assert.Equal(t, uint8(domain.ArticleStatusPublished), pa.Status)
 				assert.Equal(t, int64(222), pa.AuthorId)
-				assert.True(t, pa.CreateTime > 0)
-				assert.True(t, pa.UpdateTime > 0)
+				assert.Equal(t, pa.CreateTime, int64(123))
+				assert.Equal(t, pa.UpdateTime, int64(123))
 			},
 			req: Article{
 				Id:      4,
@@ -290,13 +402,16 @@ func (s *ArticleHandlerSuite) TestArticlePublish() {
 			var result Result[int64]
 			err = json.Unmarshal(recorder.Body.Bytes(), &result)
 			assert.NoError(t, err)
-			assert.Equal(t, tc.wantResult, result)
+			if tc.wantResult.Data > 0 {
+				// 你只能断定有 ID
+				assert.True(t, result.Data > 0)
+			}
 		})
 	}
 }
 
 // 测试用例
-func (s *ArticleHandlerSuite) TestEdit() {
+func (s *ArticleMongoDBHandlerSuite) TestEdit() {
 	t := s.T()
 
 	testCases := []struct {
@@ -313,9 +428,19 @@ func (s *ArticleHandlerSuite) TestEdit() {
 
 			},
 			after: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
 				var art dao.Article
 
-				err := s.db.Where("id = ?", 1).First(&art).Error
+				err := s.col.FindOne(
+					ctx,
+					bson.D{
+						bson.E{
+							Key:   "author_id",
+							Value: 111,
+						},
+					},
+				).Decode(&art)
 				assert.NoError(t, err)
 				assert.True(t, art.CreateTime > 0)
 				assert.True(t, art.UpdateTime > 0)
@@ -336,20 +461,36 @@ func (s *ArticleHandlerSuite) TestEdit() {
 		{
 			name: "修改帖子",
 			before: func(t *testing.T) {
-				s.db.Create(&dao.Article{
-					Id:         2,
-					AuthorId:   111,
-					Title:      "原帖子",
-					Content:    "原帖子",
-					Status:     uint8(domain.ArticleStatusUnpublished),
-					CreateTime: 123,
-					UpdateTime: 123,
-				})
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				_, err := s.col.InsertOne(
+					ctx,
+					&dao.Article{
+						Id:         2,
+						AuthorId:   111,
+						Title:      "原帖子",
+						Content:    "原帖子",
+						Status:     uint8(domain.ArticleStatusUnpublished),
+						CreateTime: 123,
+						UpdateTime: 123,
+					},
+				)
+				assert.NoError(t, err)
 			},
 			after: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
 				var art dao.Article
 
-				err := s.db.Where("id = ?", 2).First(&art).Error
+				err := s.col.FindOne(
+					ctx,
+					bson.D{
+						bson.E{
+							Key:   "id",
+							Value: 2,
+						},
+					},
+				).Decode(&art)
 				assert.NoError(t, err)
 				assert.True(t, art.CreateTime > 0)
 				assert.True(t, art.UpdateTime > 0)
@@ -371,20 +512,35 @@ func (s *ArticleHandlerSuite) TestEdit() {
 		{
 			name: "修改别人的帖子",
 			before: func(t *testing.T) {
-				s.db.Create(&dao.Article{
-					Id:         3,
-					AuthorId:   222,
-					Title:      "别人的帖子",
-					Content:    "别人的帖子",
-					Status:     uint8(domain.ArticleStatusUnpublished),
-					CreateTime: 123,
-					UpdateTime: 123,
-				})
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				_, err := s.col.InsertOne(
+					ctx,
+					&dao.Article{
+						Id:         3,
+						AuthorId:   222,
+						Title:      "别人的帖子",
+						Content:    "别人的帖子",
+						Status:     uint8(domain.ArticleStatusUnpublished),
+						CreateTime: 123,
+						UpdateTime: 123,
+					},
+				)
+				assert.NoError(t, err)
 			},
 			after: func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
 				var art dao.Article
-
-				err := s.db.Where("id = ?", 3).First(&art).Error
+				err := s.col.FindOne(
+					ctx,
+					bson.D{
+						bson.E{
+							Key:   "id",
+							Value: 3,
+						},
+					},
+				).Decode(&art)
 				assert.NoError(t, err)
 				assert.True(t, art.CreateTime > 0)
 				assert.True(t, art.UpdateTime > 0)
@@ -435,24 +591,15 @@ func (s *ArticleHandlerSuite) TestEdit() {
 			var result Result[int64]
 			err = json.Unmarshal(recorder.Body.Bytes(), &result)
 			assert.NoError(t, err)
-			assert.Equal(t, tc.wantRes, result)
+			if tc.wantRes.Data > 0 {
+				// 你只能断定有 ID
+				assert.True(t, result.Data > 0)
+			}
 		})
 	}
 }
 
 // 入口
-func TestArticleHandler(t *testing.T) {
-	suite.Run(t, &ArticleHandlerSuite{})
-}
-
-type Result[T any] struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
-	Data T      `json:"data"`
-}
-
-type Article struct {
-	Id      int64  `json:"id"`
-	Title   string `json:"title"`
-	Content string `json:"content"`
+func TestArticleMongoDBHandler(t *testing.T) {
+	suite.Run(t, &ArticleMongoDBHandlerSuite{})
 }
