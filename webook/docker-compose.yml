@@ -12,6 +12,7 @@ services:
       - ./script/mysql/:/docker-entrypoint-initdb.d/
     ports:
       - "13306:3306"
+
   redis:
     image: bitnami/redis:latest
     restart: always
@@ -19,3 +20,12 @@ services:
       ALLOW_EMPTY_PASSWORD: yes
     ports:
       - "6379:6379"
+
+  mongodb:
+    image: bitnami/mongodb:latest
+    restart: always
+    environment:
+      MONGODB_ROOT_USER: root
+      MONGODB_ROOT_PASSWORD: root
+    ports:
+      - "27017:27017"
