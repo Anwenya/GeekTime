@@ -17,6 +17,9 @@ type ArticleDAO interface {
 	UpdateById(ctx context.Context, art Article) error
 	Sync(ctx context.Context, art Article) (int64, error)
 	SyncStatus(ctx context.Context, uid int64, id int64, status uint8) error
+	GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]Article, error)
+	GetById(ctx context.Context, id int64) (Article, error)
+	GetPubById(ctx context.Context, id int64) (PublishedArticle, error)
 }
 
 // ArticleGORMDAO
@@ -30,6 +33,16 @@ func NewArticleGORMDAO(db *gorm.DB) ArticleDAO {
 	return &ArticleGORMDAO{
 		db: db,
 	}
+}
+
+// GetByAuthor 查询文章列表
+func (a *ArticleGORMDAO) GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]Article, error) {
+	var arts []Article
+	err := a.db.WithContext(ctx).Where("author_id = ?", uid).
+		Offset(offset).Limit(limit).Order("update_time desc").
+		Find(&arts).Error
+
+	return arts, err
 }
 
 // Insert 插入到作者表
@@ -134,6 +147,18 @@ func (a *ArticleGORMDAO) SyncStatus(ctx context.Context, uid int64, id int64, st
 				"status":      status,
 			}).Error
 	})
+}
+
+func (a *ArticleGORMDAO) GetById(ctx context.Context, id int64) (Article, error) {
+	var art Article
+	err := a.db.WithContext(ctx).Where("id = ?", id).First(&art).Error
+	return art, err
+}
+
+func (a *ArticleGORMDAO) GetPubById(ctx context.Context, id int64) (PublishedArticle, error) {
+	var pa PublishedArticle
+	err := a.db.WithContext(ctx).Where("id = ?", id).First(&pa).Error
+	return pa, err
 }
 
 // SyncV1 同步作者表的文章到读者表
@@ -336,4 +361,16 @@ func (a *ArticleMongoDBDAO) SyncStatus(ctx context.Context, uid int64, id int64,
 	}
 	_, err = a.liveCol.UpdateOne(ctx, filter, sets)
 	return err
+}
+
+func (a *ArticleMongoDBDAO) GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]Article, error) {
+	panic(any("implement me"))
+}
+
+func (a *ArticleMongoDBDAO) GetById(ctx context.Context, id int64) (Article, error) {
+	panic(any("implement me"))
+}
+
+func (a *ArticleMongoDBDAO) GetPubById(ctx context.Context, id int64) (PublishedArticle, error) {
+	panic(any("implement me"))
 }

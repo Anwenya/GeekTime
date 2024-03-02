@@ -15,8 +15,9 @@ func main() {
 	if err != nil {
 		zap.L().Panic("启动失败", zap.Error(err))
 	}
-	zap.L().Info("启动成功",
-		zap.Any(
+	zap.L().Info(
+		"启动成功",
+		zap.String(
 			"address",
 			config.Config.App.HttpServerAddress,
 		),

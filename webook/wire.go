@@ -30,6 +30,7 @@ func InitWebServer() *gin.Engine {
 		// 缓存
 		cache.NewCodeCache,
 		cache.NewUserCache,
+		cache.NewArticleRedisCache,
 
 		// repo
 		repository.NewCachedCodeRepository,
