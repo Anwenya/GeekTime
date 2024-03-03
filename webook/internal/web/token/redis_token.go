@@ -90,7 +90,7 @@ func (rth *RedisTokenHandler) setRefreshToken(ctx *gin.Context, uid int64, ssid 
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(rth.rcExpiration)),
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodES512, rc)
+	token := jwt.NewWithClaims(rth.signingMethod, rc)
 	tokenStr, err := token.SignedString(config.Config.SecretKey.Token)
 	if err != nil {
 		return err
