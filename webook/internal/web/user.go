@@ -3,6 +3,7 @@ package web
 import (
 	"github.com/Anwenya/GeekTime/webook/config"
 	itoken "github.com/Anwenya/GeekTime/webook/internal/web/token"
+	"github.com/Anwenya/GeekTime/webook/pkg/ginx"
 	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"net/http"
@@ -141,10 +142,10 @@ func (userHandler *UserHandler) LoginWithToken(ctx *gin.Context) {
 func (userHandler *UserHandler) LogoutWithToken(ctx *gin.Context) {
 	err := userHandler.ClearToken(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{Code: 5, Msg: "系统错误"})
+		ctx.JSON(http.StatusOK, ginx.Result{Code: 5, Msg: "系统错误"})
 		return
 	}
-	ctx.JSON(http.StatusOK, Result{Msg: "退出登录成功"})
+	ctx.JSON(http.StatusOK, ginx.Result{Msg: "退出登录成功"})
 }
 
 func (userHandler *UserHandler) RefreshToken(ctx *gin.Context) {
@@ -173,7 +174,7 @@ func (userHandler *UserHandler) RefreshToken(ctx *gin.Context) {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
-	ctx.JSON(http.StatusOK, Result{
+	ctx.JSON(http.StatusOK, ginx.Result{
 		Msg: "OK",
 	})
 }
@@ -260,7 +261,7 @@ func (userHandler *UserHandler) LoginSendSMSCode(ctx *gin.Context) {
 		return
 	}
 	if req.Phone == "" {
-		ctx.JSON(http.StatusOK, Result{
+		ctx.JSON(http.StatusOK, ginx.Result{
 			Code: 4,
 			Msg:  "请输入手机号码",
 		})
@@ -269,16 +270,16 @@ func (userHandler *UserHandler) LoginSendSMSCode(ctx *gin.Context) {
 	err := userHandler.codeService.Send(ctx, bizLogin, req.Phone)
 	switch err {
 	case nil:
-		ctx.JSON(http.StatusOK, Result{
+		ctx.JSON(http.StatusOK, ginx.Result{
 			Msg: "发送成功",
 		})
 	case service.ErrCodeSendTooMany:
-		ctx.JSON(http.StatusOK, Result{
+		ctx.JSON(http.StatusOK, ginx.Result{
 			Code: 4,
 			Msg:  "短信发送太频繁，请稍后再试",
 		})
 	default:
-		ctx.JSON(http.StatusOK, Result{
+		ctx.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "系统错误",
 		})
@@ -298,14 +299,14 @@ func (userHandler *UserHandler) LoginWithSMS(ctx *gin.Context) {
 
 	ok, err := userHandler.codeService.Verify(ctx, bizLogin, req.Phone, req.Code)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
+		ctx.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "系统异常",
 		})
 		return
 	}
 	if !ok {
-		ctx.JSON(http.StatusOK, Result{
+		ctx.JSON(http.StatusOK, ginx.Result{
 			Code: 4,
 			Msg:  "验证码错误",
 		})
@@ -313,7 +314,7 @@ func (userHandler *UserHandler) LoginWithSMS(ctx *gin.Context) {
 	}
 	domainUser, err := userHandler.userService.FindOrCreate(ctx, req.Phone)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
+		ctx.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "系统错误",
 		})
@@ -321,13 +322,13 @@ func (userHandler *UserHandler) LoginWithSMS(ctx *gin.Context) {
 	}
 	err = userHandler.SetLoginToken(ctx, domainUser.Id)
 	if err != nil {
-		ctx.JSON(http.StatusOK, Result{
+		ctx.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
 			Msg:  "系统错误",
 		})
 		return
 	}
-	ctx.JSON(http.StatusOK, Result{
+	ctx.JSON(http.StatusOK, ginx.Result{
 		Msg: "登录成功",
 	})
 }
