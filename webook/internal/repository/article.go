@@ -73,6 +73,9 @@ func (c *CachedArticleRepository) GetByAuthor(ctx context.Context, uid int64, of
 	if offset == 0 && limit <= 100 {
 		res, err := c.cache.GetFirstPage(ctx, uid)
 		if err == nil {
+			if limit > cap(res) {
+				return res[:cap(res)], err
+			}
 			return res[:limit], err
 		} else {
 			c.l.Error("查询文章缓存失败", logger.Error(err))

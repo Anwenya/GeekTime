@@ -39,7 +39,7 @@ type config struct {
 	} `yaml:"duration"`
 
 	SecretKey struct {
-		Token    string `yaml:"token"`
+		Token    []byte `yaml:"token"`
 		Session1 []byte `yaml:"session1"`
 		Session2 []byte `yaml:"session2"`
 	} `yaml:"secretKey"`
