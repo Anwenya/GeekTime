@@ -22,21 +22,21 @@ type ArticleDAO interface {
 	GetPubById(ctx context.Context, id int64) (PublishedArticle, error)
 }
 
-// ArticleGORMDAO
+// GORMArticleDAO
 // 这里的例子是读和写对应到同一个数据库的两张表
 // 这样可以通过数据库事务来保证 发表文章 这个操作的原子性
-type ArticleGORMDAO struct {
+type GORMArticleDAO struct {
 	db *gorm.DB
 }
 
-func NewArticleGORMDAO(db *gorm.DB) ArticleDAO {
-	return &ArticleGORMDAO{
+func NewGORMArticleDAO(db *gorm.DB) ArticleDAO {
+	return &GORMArticleDAO{
 		db: db,
 	}
 }
 
 // GetByAuthor 查询文章列表
-func (a *ArticleGORMDAO) GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]Article, error) {
+func (a *GORMArticleDAO) GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]Article, error) {
 	var arts []Article
 	err := a.db.WithContext(ctx).Where("author_id = ?", uid).
 		Offset(offset).Limit(limit).Order("update_time desc").
@@ -46,7 +46,7 @@ func (a *ArticleGORMDAO) GetByAuthor(ctx context.Context, uid int64, offset int,
 }
 
 // Insert 插入到作者表
-func (a *ArticleGORMDAO) Insert(ctx context.Context, art Article) (int64, error) {
+func (a *GORMArticleDAO) Insert(ctx context.Context, art Article) (int64, error) {
 	now := time.Now().UnixMilli()
 	art.CreateTime = now
 	art.UpdateTime = now
@@ -57,7 +57,7 @@ func (a *ArticleGORMDAO) Insert(ctx context.Context, art Article) (int64, error)
 }
 
 // UpdateById 更新到作者表
-func (a *ArticleGORMDAO) UpdateById(ctx context.Context, art Article) error {
+func (a *GORMArticleDAO) UpdateById(ctx context.Context, art Article) error {
 	now := time.Now().UnixMilli()
 	res := a.db.WithContext(ctx).Model(&art).
 		Where("id = ? AND author_id = ?", art.Id, art.AuthorId).
@@ -81,11 +81,11 @@ func (a *ArticleGORMDAO) UpdateById(ctx context.Context, art Article) error {
 
 // Sync 同步作者表的文章到读者表
 // 传统写法 使用现成的Transaction方法
-func (a *ArticleGORMDAO) Sync(ctx context.Context, art Article) (int64, error) {
+func (a *GORMArticleDAO) Sync(ctx context.Context, art Article) (int64, error) {
 	var id = art.Id
 	err := a.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var err error
-		dao := NewArticleGORMDAO(tx)
+		dao := NewGORMArticleDAO(tx)
 		if id > 0 {
 			// 已经存在id则为更新操作
 			err = dao.UpdateById(ctx, art)
@@ -125,7 +125,7 @@ func (a *ArticleGORMDAO) Sync(ctx context.Context, art Article) (int64, error) {
 }
 
 // SyncStatus 更新文章状态
-func (a *ArticleGORMDAO) SyncStatus(ctx context.Context, uid int64, id int64, status uint8) error {
+func (a *GORMArticleDAO) SyncStatus(ctx context.Context, uid int64, id int64, status uint8) error {
 	now := time.Now().UnixMilli()
 	return a.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&Article{}).
@@ -149,13 +149,13 @@ func (a *ArticleGORMDAO) SyncStatus(ctx context.Context, uid int64, id int64, st
 	})
 }
 
-func (a *ArticleGORMDAO) GetById(ctx context.Context, id int64) (Article, error) {
+func (a *GORMArticleDAO) GetById(ctx context.Context, id int64) (Article, error) {
 	var art Article
 	err := a.db.WithContext(ctx).Where("id = ?", id).First(&art).Error
 	return art, err
 }
 
-func (a *ArticleGORMDAO) GetPubById(ctx context.Context, id int64) (PublishedArticle, error) {
+func (a *GORMArticleDAO) GetPubById(ctx context.Context, id int64) (PublishedArticle, error) {
 	var pa PublishedArticle
 	err := a.db.WithContext(ctx).Where("id = ?", id).First(&pa).Error
 	return pa, err
@@ -163,7 +163,7 @@ func (a *ArticleGORMDAO) GetPubById(ctx context.Context, id int64) (PublishedArt
 
 // SyncV1 同步作者表的文章到读者表
 // 自己控制事务的写法
-func (a *ArticleGORMDAO) SyncV1(ctx context.Context, art Article) (int64, error) {
+func (a *GORMArticleDAO) SyncV1(ctx context.Context, art Article) (int64, error) {
 	tx := a.db.WithContext(ctx).Begin()
 	// 开启事务失败
 	if tx.Error != nil {
@@ -178,7 +178,7 @@ func (a *ArticleGORMDAO) SyncV1(ctx context.Context, art Article) (int64, error)
 		id  = art.Id
 		err error
 	)
-	dao := NewArticleGORMDAO(tx)
+	dao := NewGORMArticleDAO(tx)
 	if id > 0 {
 		err = dao.UpdateById(ctx, art)
 	} else {

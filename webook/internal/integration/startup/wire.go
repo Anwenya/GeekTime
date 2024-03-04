@@ -22,21 +22,28 @@ var thirdPartySet = wire.NewSet(
 
 var userRepoSet = wire.NewSet(
 	thirdPartySet,
-	dao.NewUserDAO,
-	cache.NewUserCache,
+	dao.NewGORMUserDAO,
+	cache.NewRedisUserCache,
 	repository.NewCachedUserRepository,
+)
+
+var interactiveServiceSet = wire.NewSet(
+	dao.NewGORMInteractiveDAO,
+	cache.NewRedisInteractiveCache,
+	repository.NewCachedInteractiveRepository,
+	service.NewInteractiveService,
 )
 
 func InitWebServer() *gin.Engine {
 	wire.Build(
 		userRepoSet,
-
+		interactiveServiceSet,
 		// dao
-		dao.NewArticleGORMDAO,
+		dao.NewGORMArticleDAO,
 
 		// 缓存
-		cache.NewCodeCache,
-		cache.NewArticleRedisCache,
+		cache.NewRedisCodeCache,
+		cache.NewRedisArticleCache,
 
 		// repo
 		repository.NewCachedCodeRepository,
@@ -63,7 +70,8 @@ func InitWebServer() *gin.Engine {
 func InitArticleHandler(dao dao.ArticleDAO) *web.ArticleHandler {
 	wire.Build(
 		userRepoSet,
-		cache.NewArticleRedisCache,
+		interactiveServiceSet,
+		cache.NewRedisArticleCache,
 		repository.NewCachedArticleRepository,
 		service.NewArticleService,
 		web.NewArticleHandler,

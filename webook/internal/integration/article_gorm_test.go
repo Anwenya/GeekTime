@@ -28,7 +28,7 @@ func (s *ArticleGORMHandlerSuite) SetupSuite() {
 	l := startup.InitLogger()
 	// 拿到db才能对结果进行校验等操作
 	s.db = startup.InitDB(l)
-	gormDAO := dao.NewArticleGORMDAO(s.db)
+	gormDAO := dao.NewGORMArticleDAO(s.db)
 	h := startup.InitArticleHandler(gormDAO)
 	server := gin.Default()
 	// 用于登录校验

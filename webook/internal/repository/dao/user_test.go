@@ -81,7 +81,7 @@ func TestGORMUserDAO_Insert(t *testing.T) {
 			})
 
 			assert.NoError(t, err)
-			ud := NewUserDAO(db)
+			ud := NewGORMUserDAO(db)
 			err = ud.Insert(tc.ctx, tc.user)
 			assert.Equal(t, tc.wantErr, err)
 		})

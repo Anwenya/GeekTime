@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"github.com/Anwenya/GeekTime/webook/internal/domain"
 	"github.com/Anwenya/GeekTime/webook/internal/service"
 	"github.com/Anwenya/GeekTime/webook/internal/web/token"
@@ -14,17 +15,22 @@ import (
 )
 
 type ArticleHandler struct {
-	svc service.ArticleService
-	l   logger.LoggerV1
+	articleService     service.ArticleService
+	interactiveService service.InteractiveService
+	l                  logger.LoggerV1
+	biz                string
 }
 
 func NewArticleHandler(
 	l logger.LoggerV1,
-	svc service.ArticleService,
+	articleService service.ArticleService,
+	interactiveService service.InteractiveService,
 ) *ArticleHandler {
 	return &ArticleHandler{
-		l:   l,
-		svc: svc,
+		l:                  l,
+		articleService:     articleService,
+		interactiveService: interactiveService,
+		biz:                "article",
 	}
 }
 
@@ -38,6 +44,8 @@ func (h *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 
 	pubGroup := group.Group("/pub")
 	pubGroup.GET("/:id", h.PubDetail)
+
+	pubGroup.POST("/like", h.Like)
 
 }
 
@@ -53,7 +61,7 @@ func (h *ArticleHandler) Edit(ctx *gin.Context) {
 	}
 
 	uc := ctx.MustGet("user").(token.UserClaims)
-	id, err := h.svc.Save(ctx, domain.Article{
+	id, err := h.articleService.Save(ctx, domain.Article{
 		Id:      req.Id,
 		Title:   req.Title,
 		Content: req.Content,
@@ -87,7 +95,7 @@ func (h *ArticleHandler) Publish(ctx *gin.Context) {
 	}
 
 	uc := ctx.MustGet("user").(token.UserClaims)
-	id, err := h.svc.Publish(
+	id, err := h.articleService.Publish(
 		ctx,
 		domain.Article{
 			Id:      req.Id,
@@ -121,7 +129,7 @@ func (h *ArticleHandler) Withdraw(ctx *gin.Context) {
 		return
 	}
 	uc := ctx.MustGet("user").(token.UserClaims)
-	err := h.svc.Withdraw(ctx, uc.Uid, req.Id)
+	err := h.articleService.Withdraw(ctx, uc.Uid, req.Id)
 	if err != nil {
 		ctx.JSON(
 			http.StatusOK,
@@ -161,7 +169,7 @@ func (h *ArticleHandler) Detail(ctx *gin.Context) {
 	}
 
 	uc := ctx.MustGet("user").(token.UserClaims)
-	art, err := h.svc.GetById(ctx, id)
+	art, err := h.articleService.GetById(ctx, id)
 	if err != nil {
 		ctx.JSON(http.StatusOK, ginx.Result{
 			Msg:  "系统错误",
@@ -208,7 +216,7 @@ func (h *ArticleHandler) List(ctx *gin.Context) {
 	}
 
 	uc := ctx.MustGet("user").(token.UserClaims)
-	arts, err := h.svc.GetByAuthor(ctx, uc.Uid, page.Offset, page.Limit)
+	arts, err := h.articleService.GetByAuthor(ctx, uc.Uid, page.Offset, page.Limit)
 	if err != nil {
 		ctx.JSON(http.StatusOK, ginx.Result{
 			Code: 5,
@@ -249,7 +257,7 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 	idstr := ctx.Param("id")
 	id, err := strconv.ParseInt(idstr, 10, 64)
 
-	art, err := h.svc.GetPubById(ctx, id)
+	art, err := h.articleService.GetPubById(ctx, id)
 
 	if err != nil {
 		ctx.JSON(http.StatusOK, ginx.Result{
@@ -276,6 +284,20 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 		return
 	}
 
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		err := h.interactiveService.IncrReadCnt(ctx, h.biz, art.Id)
+		if err != nil {
+			h.l.Error(
+				"更新阅读数失败",
+				logger.Int64("aid", art.Id),
+				logger.Error(err),
+			)
+		}
+	}()
+
 	ctx.JSON(http.StatusOK, ginx.Result{
 		Data: ArticleVo{
 			Id:         art.Id,
@@ -288,4 +310,46 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 			UpdateTime: art.UpdateTime.Format(time.DateTime),
 		},
 	})
+}
+
+func (h *ArticleHandler) Like(ctx *gin.Context) {
+	type Req struct {
+		Id   int64 `json:"id"`
+		Like bool  `json:"like"`
+	}
+
+	var req Req
+	if err := ctx.BindJSON(&req); err != nil {
+		return
+	}
+
+	uc := ctx.MustGet("user").(token.UserClaims)
+	var err error
+	if req.Like {
+		err = h.interactiveService.Like(ctx, h.biz, req.Id, uc.Uid)
+	} else {
+		err = h.interactiveService.CancelLike(ctx, h.biz, req.Id, uc.Uid)
+	}
+
+	if err != nil {
+		ctx.JSON(
+			http.StatusOK,
+			ginx.Result{
+				Code: 5,
+				Msg:  "系统错误",
+			},
+		)
+		h.l.Error("点赞/取消点赞失败",
+			logger.Error(err),
+			logger.Int64("uid", uc.Uid),
+			logger.Int64("article_id", req.Id),
+		)
+		return
+	}
+	ctx.JSON(
+		http.StatusOK,
+		ginx.Result{
+			Msg: "OK",
+		},
+	)
 }

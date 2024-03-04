@@ -19,16 +19,16 @@ type ArticleCache interface {
 	SetPub(ctx context.Context, res domain.Article) error
 }
 
-type ArticleRedisCache struct {
+type RedisArticleCache struct {
 	client redis.Cmdable
 }
 
-func NewArticleRedisCache(client redis.Cmdable) ArticleCache {
-	return &ArticleRedisCache{client: client}
+func NewRedisArticleCache(client redis.Cmdable) ArticleCache {
+	return &RedisArticleCache{client: client}
 }
 
 // GetFirstPage 获得用户文章列表的缓存
-func (a ArticleRedisCache) GetFirstPage(ctx context.Context, uid int64) ([]domain.Article, error) {
+func (a RedisArticleCache) GetFirstPage(ctx context.Context, uid int64) ([]domain.Article, error) {
 	key := a.authorFirstPageKey(uid)
 	val, err := a.client.Get(ctx, key).Bytes()
 	if err != nil {
@@ -40,7 +40,7 @@ func (a ArticleRedisCache) GetFirstPage(ctx context.Context, uid int64) ([]domai
 }
 
 // SetFirstPage 设置用户文章列表的缓存
-func (a ArticleRedisCache) SetFirstPage(ctx context.Context, uid int64, arts []domain.Article) error {
+func (a RedisArticleCache) SetFirstPage(ctx context.Context, uid int64, arts []domain.Article) error {
 	// 只缓存文章的摘要 列表页一般也只展示摘要
 	for i := 0; i < len(arts); i++ {
 		arts[i].Content = arts[i].Abstract()
@@ -54,11 +54,11 @@ func (a ArticleRedisCache) SetFirstPage(ctx context.Context, uid int64, arts []d
 }
 
 // DelFirstPage 删除缓存
-func (a ArticleRedisCache) DelFirstPage(ctx context.Context, uid int64) error {
+func (a RedisArticleCache) DelFirstPage(ctx context.Context, uid int64) error {
 	return a.client.Del(ctx, a.authorFirstPageKey(uid)).Err()
 }
 
-func (a ArticleRedisCache) Get(ctx context.Context, id int64) (domain.Article, error) {
+func (a RedisArticleCache) Get(ctx context.Context, id int64) (domain.Article, error) {
 	val, err := a.client.Get(ctx, a.authorDetailKey(id)).Bytes()
 	if err != nil {
 		return domain.Article{}, err
@@ -68,7 +68,7 @@ func (a ArticleRedisCache) Get(ctx context.Context, id int64) (domain.Article, e
 	return res, err
 }
 
-func (a ArticleRedisCache) Set(ctx context.Context, art domain.Article) error {
+func (a RedisArticleCache) Set(ctx context.Context, art domain.Article) error {
 	val, err := json.Marshal(art)
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func (a ArticleRedisCache) Set(ctx context.Context, art domain.Article) error {
 	return a.client.Set(ctx, a.authorDetailKey(art.Id), val, time.Minute*10).Err()
 }
 
-func (a ArticleRedisCache) GetPub(ctx context.Context, id int64) (domain.Article, error) {
+func (a RedisArticleCache) GetPub(ctx context.Context, id int64) (domain.Article, error) {
 	val, err := a.client.Get(ctx, a.pubDetailKey(id)).Bytes()
 	if err != nil {
 		return domain.Article{}, err
@@ -86,7 +86,7 @@ func (a ArticleRedisCache) GetPub(ctx context.Context, id int64) (domain.Article
 	return res, err
 }
 
-func (a ArticleRedisCache) SetPub(ctx context.Context, art domain.Article) error {
+func (a RedisArticleCache) SetPub(ctx context.Context, art domain.Article) error {
 	val, err := json.Marshal(art)
 	if err != nil {
 		return err
@@ -95,16 +95,16 @@ func (a ArticleRedisCache) SetPub(ctx context.Context, art domain.Article) error
 }
 
 // 作者库第一页缓存的key
-func (a *ArticleRedisCache) pubDetailKey(id int64) string {
+func (a *RedisArticleCache) pubDetailKey(id int64) string {
 	return fmt.Sprintf("article:pub:detail:%d", id)
 }
 
 // 作者库文章详情的key
-func (a *ArticleRedisCache) authorDetailKey(id int64) string {
+func (a *RedisArticleCache) authorDetailKey(id int64) string {
 	return fmt.Sprintf("article:author:detail:%d", id)
 }
 
 // 作者库第一页缓存的key
-func (a *ArticleRedisCache) authorFirstPageKey(uid int64) string {
+func (a *RedisArticleCache) authorFirstPageKey(uid int64) string {
 	return fmt.Sprintf("article:author:first_page:%d", uid)
 }
