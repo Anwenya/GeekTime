@@ -9,6 +9,7 @@ import (
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"github.com/ecodeclub/ekit/slice"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
 	"net/http"
 	"strconv"
 	"time"
@@ -46,6 +47,7 @@ func (h *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	pubGroup.GET("/:id", h.PubDetail)
 
 	pubGroup.POST("/like", h.Like)
+	pubGroup.POST("/collect", h.LikeCollect)
 
 }
 
@@ -254,11 +256,8 @@ func (h *ArticleHandler) List(ctx *gin.Context) {
 }
 
 func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
-	idstr := ctx.Param("id")
-	id, err := strconv.ParseInt(idstr, 10, 64)
-
-	art, err := h.articleService.GetPubById(ctx, id)
-
+	idStr := ctx.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		ctx.JSON(http.StatusOK, ginx.Result{
 			Msg:  "id 参数错误",
@@ -266,11 +265,30 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 		})
 		h.l.Warn(
 			"查询文章失败 id 格式异常",
-			logger.String("id", idstr),
+			logger.String("id", idStr),
 			logger.Error(err),
 		)
 		return
 	}
+
+	uc := ctx.MustGet("user").(token.UserClaims)
+
+	var (
+		eg          errgroup.Group
+		art         domain.Article
+		interactive domain.Interactive
+	)
+	eg.Go(func() error {
+		var er error
+		art, er = h.articleService.GetPubById(ctx, id)
+		return er
+	})
+
+	eg.Go(func() error {
+		var er error
+		interactive, er = h.interactiveService.Get(ctx, h.biz, id, uc.Uid)
+		return er
+	})
 
 	if err != nil {
 		ctx.JSON(http.StatusOK, ginx.Result{
@@ -279,6 +297,8 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 		})
 		h.l.Error(
 			"查询文章失败 系统错误",
+			logger.Int64("aid", art.Id),
+			logger.Int64("uid", uc.Uid),
 			logger.Error(err),
 		)
 		return
@@ -305,6 +325,13 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 			Content:    art.Content,
 			AuthorId:   art.Author.Id,
 			AuthorName: art.Author.Name,
+
+			ReadCnt:    interactive.ReadCnt,
+			CollectCnt: interactive.CollectCnt,
+			LikeCnt:    interactive.LikeCnt,
+			Liked:      interactive.Liked,
+			Collected:  interactive.Collected,
+
 			Status:     art.Status.ToUint8(),
 			CreateTime: art.CreateTime.Format(time.DateTime),
 			UpdateTime: art.UpdateTime.Format(time.DateTime),
@@ -343,6 +370,43 @@ func (h *ArticleHandler) Like(ctx *gin.Context) {
 			logger.Error(err),
 			logger.Int64("uid", uc.Uid),
 			logger.Int64("article_id", req.Id),
+		)
+		return
+	}
+	ctx.JSON(
+		http.StatusOK,
+		ginx.Result{
+			Msg: "OK",
+		},
+	)
+}
+
+func (h *ArticleHandler) LikeCollect(ctx *gin.Context) {
+	type Req struct {
+		Id  int64 `json:"id"`
+		Cid int64 `json:"cid"`
+	}
+
+	var req Req
+	if err := ctx.BindJSON(&req); err != nil {
+		return
+	}
+
+	uc := ctx.MustGet("user").(token.UserClaims)
+
+	err := h.interactiveService.Collect(ctx, h.biz, req.Id, req.Cid, uc.Uid)
+	if err != nil {
+		ctx.JSON(
+			http.StatusOK,
+			ginx.Result{
+				Code: 5,
+				Msg:  "系统错误",
+			},
+		)
+		h.l.Error(
+			"收藏失败",
+			logger.Int64("uid", uc.Uid),
+			logger.Int64("aid", req.Id),
 		)
 		return
 	}

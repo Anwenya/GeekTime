@@ -8,6 +8,13 @@ type ArticleVo struct {
 	AuthorId   int64  `json:"authorId,omitempty"`
 	AuthorName string `json:"authorName,omitempty"`
 	Status     uint8  `json:"status,omitempty"`
+
+	ReadCnt    int64 `json:"readCnt"`
+	LikeCnt    int64 `json:"likeCnt"`
+	CollectCnt int64 `json:"collectCnt"`
+	Liked      bool  `json:"liked"`
+	Collected  bool  `json:"collected"`
+
 	CreateTime string `json:"createTime,omitempty"`
 	UpdateTime string `json:"updateTime,omitempty"`
 }
