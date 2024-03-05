@@ -40,3 +40,16 @@ CREATE TABLE `published_articles`
     PRIMARY KEY (`id`),
     INDEX `idx_published_articles_author_id` (`author_id`)
 );
+
+CREATE TABLE `async_sms_tasks`
+(
+    `id`          bigint AUTO_INCREMENT,
+    `config`      longtext,
+    `retry_cnt`   bigint,
+    `retry_max`   bigint,
+    `status`      tinyint unsigned,
+    `create_time` bigint,
+    `update_time` bigint,
+    PRIMARY KEY (`id`),
+    INDEX `idx_async_sms_tasks_update_time` (`update_time`)
+)

@@ -8,6 +8,8 @@ import (
 	"github.com/Anwenya/GeekTime/webook/internal/repository/cache"
 	"github.com/Anwenya/GeekTime/webook/internal/repository/dao"
 	"github.com/Anwenya/GeekTime/webook/internal/service"
+	"github.com/Anwenya/GeekTime/webook/internal/service/sms"
+	"github.com/Anwenya/GeekTime/webook/internal/service/sms/async"
 	"github.com/Anwenya/GeekTime/webook/internal/web"
 	"github.com/Anwenya/GeekTime/webook/internal/web/token"
 	"github.com/gin-gonic/gin"
@@ -77,4 +79,14 @@ func InitArticleHandler(dao dao.ArticleDAO) *web.ArticleHandler {
 		web.NewArticleHandler,
 	)
 	return &web.ArticleHandler{}
+}
+
+func InitAsyncSMSService(svc sms.SMService) *async.Service {
+	wire.Build(
+		thirdPartySet,
+		repository.NewAsyncSMSRepository,
+		dao.NewGORMAsyncSMSDAO,
+		async.NewService,
+	)
+	return &async.Service{}
 }

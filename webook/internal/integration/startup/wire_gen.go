@@ -12,6 +12,8 @@ import (
 	"github.com/Anwenya/GeekTime/webook/internal/repository/cache"
 	"github.com/Anwenya/GeekTime/webook/internal/repository/dao"
 	"github.com/Anwenya/GeekTime/webook/internal/service"
+	"github.com/Anwenya/GeekTime/webook/internal/service/sms"
+	"github.com/Anwenya/GeekTime/webook/internal/service/sms/async"
 	"github.com/Anwenya/GeekTime/webook/internal/web"
 	"github.com/Anwenya/GeekTime/webook/internal/web/token"
 	"github.com/gin-gonic/gin"
@@ -66,6 +68,15 @@ func InitArticleHandler(dao2 dao.ArticleDAO) *web.ArticleHandler {
 	interactiveService := service.NewInteractiveService(interactiveRepository)
 	articleHandler := web.NewArticleHandler(loggerV1, articleService, interactiveService)
 	return articleHandler
+}
+
+func InitAsyncSMSService(svc sms.SMService) *async.Service {
+	loggerV1 := InitLogger()
+	db := InitDB(loggerV1)
+	asyncSMSDAO := dao.NewGORMAsyncSMSDAO(db)
+	asyncSMSRepository := repository.NewAsyncSMSRepository(asyncSMSDAO)
+	asyncService := async.NewService(svc, asyncSMSRepository, loggerV1)
+	return asyncService
 }
 
 // wire.go:
