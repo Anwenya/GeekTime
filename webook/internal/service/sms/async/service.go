@@ -6,14 +6,16 @@ import (
 	"github.com/Anwenya/GeekTime/webook/internal/repository"
 	"github.com/Anwenya/GeekTime/webook/internal/service/sms"
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
+	"math"
 
 	"time"
 )
 
 type Service struct {
-	svc  sms.SMService
-	repo repository.AsyncSMSRepository
-	l    logger.LoggerV1
+	svc    sms.SMService
+	repo   repository.AsyncSMSRepository
+	record *record
+	l      logger.LoggerV1
 }
 
 func NewService(
@@ -25,6 +27,9 @@ func NewService(
 		svc:  svc,
 		repo: repo,
 		l:    l,
+		// 响应时间不能连续3次超过3秒
+		// 近5次的平均响应时间不能超过3秒
+		record: newRecord(time.Second*3, 3, 5, time.Second*3),
 	}
 	go func() {
 		s.StartAsyncCycle()
@@ -104,8 +109,14 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 		)
 		return err
 	}
+	start := time.Now()
 	// 非异步
-	return s.svc.Send(ctx, tplId, args, numbers...)
+	err := s.svc.Send(ctx, tplId, args, numbers...)
+	if err != nil {
+		return err
+	}
+	s.record.Record(time.Since(start))
+	return nil
 }
 
 // 根据具体的规则判断是否需要异步发送
@@ -119,5 +130,83 @@ func (s *Service) needAsync() bool {
 	// 什么时候退出异步
 	// 1. 进入异步 N 分钟后
 	// 2. 保留 1% 的流量（或者更少），继续同步发送，判定响应时间/错误率
-	return true
+	return s.record.Judge()
+}
+
+type record struct {
+
+	// consecutiveTimeoutTimes 连续超时次数
+	ctt int
+	// thresholdTimeout 超时阈值
+	tto time.Duration
+	// maxConsecutiveTimeoutTimes 最大连续超时次数
+	mctt int
+
+	// responseTimeoutList 记录响应时间
+	rtl []int64
+	// averageQuantity 参与计算平均响应时间的次数
+	aq int
+	// thresholdAverageTimeout 平均响应时间阈值
+	tat time.Duration
+	// sumResponseTime 近几次总响应时间
+	srt int64
+	// 总响应时间阈值
+	tsrt int64
+
+	// 最大/小响应时间
+	maxrt int64
+	minrt int64
+}
+
+func newRecord(tto time.Duration, mctt int, aq int, tat time.Duration) *record {
+	return &record{
+		tto:   tto,
+		mctt:  mctt,
+		aq:    aq,
+		tat:   tat,
+		rtl:   make([]int64, aq, aq),
+		maxrt: math.MinInt,
+		minrt: math.MaxInt,
+		tsrt:  int64(aq) * tat.Milliseconds(),
+	}
+}
+
+func (r *record) Record(rt time.Duration) {
+	rtInt64 := rt.Milliseconds()
+
+	// 计算总响应时间
+	r.srt += rtInt64
+	r.srt -= r.rtl[0]
+
+	// 记录近几次的响应时间 从后往前添加
+	copy(r.rtl, r.rtl[1:r.aq])
+	r.rtl[r.aq-1] = rtInt64
+
+	// 记录连续超时次数
+	if rt > r.tto {
+		r.ctt += 1
+	} else {
+		r.ctt = 0
+	}
+
+	// 最大与最小响应时间
+	if rtInt64 > r.maxrt {
+		r.maxrt = rtInt64
+	}
+	if rtInt64 < r.minrt {
+		r.minrt = rtInt64
+	}
+}
+
+func (r *record) Judge() bool {
+	// 平均响应时间是否达到阈值
+	if r.srt > r.tsrt {
+		return true
+	}
+
+	// 连续超时次数是否达到阈值
+	if r.ctt >= r.mctt {
+		return true
+	}
+	return false
 }
