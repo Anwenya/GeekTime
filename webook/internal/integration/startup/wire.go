@@ -3,6 +3,7 @@
 package startup
 
 import (
+	"github.com/Anwenya/GeekTime/webook/internal/events/article"
 	"github.com/Anwenya/GeekTime/webook/internal/ioc"
 	"github.com/Anwenya/GeekTime/webook/internal/repository"
 	"github.com/Anwenya/GeekTime/webook/internal/repository/cache"
@@ -20,6 +21,8 @@ var thirdPartySet = wire.NewSet(
 	InitLogger,
 	InitRedis,
 	InitDB,
+	InitSaramaClient,
+	InitSyncProducer,
 )
 
 var userRepoSet = wire.NewSet(
@@ -51,6 +54,8 @@ func InitWebServer() *gin.Engine {
 		repository.NewCachedCodeRepository,
 		repository.NewCachedArticleRepository,
 
+		article.NewSaramaSyncProducer,
+
 		// service
 		ioc.InitWechatService,
 		ioc.InitSMSService,
@@ -75,6 +80,7 @@ func InitArticleHandler(dao dao.ArticleDAO) *web.ArticleHandler {
 		interactiveServiceSet,
 		cache.NewRedisArticleCache,
 		repository.NewCachedArticleRepository,
+		article.NewSaramaSyncProducer,
 		service.NewArticleService,
 		web.NewArticleHandler,
 	)

@@ -7,6 +7,7 @@
 package startup
 
 import (
+	"github.com/Anwenya/GeekTime/webook/internal/events/article"
 	"github.com/Anwenya/GeekTime/webook/internal/ioc"
 	"github.com/Anwenya/GeekTime/webook/internal/repository"
 	"github.com/Anwenya/GeekTime/webook/internal/repository/cache"
@@ -42,10 +43,13 @@ func InitWebServer() *gin.Engine {
 	articleDAO := dao.NewGORMArticleDAO(db)
 	articleCache := cache.NewRedisArticleCache(cmdable)
 	articleRepository := repository.NewCachedArticleRepository(articleDAO, articleCache, userRepository, loggerV1)
-	articleService := service.NewArticleService(articleRepository)
+	client := InitSaramaClient()
+	syncProducer := InitSyncProducer(client)
+	producer := article.NewSaramaSyncProducer(syncProducer)
+	articleService := service.NewArticleService(articleRepository, producer)
 	interactiveDAO := dao.NewGORMInteractiveDAO(db)
 	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
-	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDAO, interactiveCache)
+	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDAO, interactiveCache, loggerV1)
 	interactiveService := service.NewInteractiveService(interactiveRepository)
 	articleHandler := web.NewArticleHandler(loggerV1, articleService, interactiveService)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler, articleHandler)
@@ -61,10 +65,13 @@ func InitArticleHandler(dao2 dao.ArticleDAO) *web.ArticleHandler {
 	userCache := cache.NewRedisUserCache(cmdable)
 	userRepository := repository.NewCachedUserRepository(userDAO, userCache)
 	articleRepository := repository.NewCachedArticleRepository(dao2, articleCache, userRepository, loggerV1)
-	articleService := service.NewArticleService(articleRepository)
+	client := InitSaramaClient()
+	syncProducer := InitSyncProducer(client)
+	producer := article.NewSaramaSyncProducer(syncProducer)
+	articleService := service.NewArticleService(articleRepository, producer)
 	interactiveDAO := dao.NewGORMInteractiveDAO(db)
 	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
-	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDAO, interactiveCache)
+	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDAO, interactiveCache, loggerV1)
 	interactiveService := service.NewInteractiveService(interactiveRepository)
 	articleHandler := web.NewArticleHandler(loggerV1, articleService, interactiveService)
 	return articleHandler
@@ -85,6 +92,8 @@ var thirdPartySet = wire.NewSet(
 	InitLogger,
 	InitRedis,
 	InitDB,
+	InitSaramaClient,
+	InitSyncProducer,
 )
 
 var userRepoSet = wire.NewSet(

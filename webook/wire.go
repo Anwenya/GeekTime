@@ -3,6 +3,8 @@
 package main
 
 import (
+	"github.com/Anwenya/GeekTime/webook/internal/events"
+	"github.com/Anwenya/GeekTime/webook/internal/events/article"
 	"github.com/Anwenya/GeekTime/webook/internal/ioc"
 	"github.com/Anwenya/GeekTime/webook/internal/repository"
 	"github.com/Anwenya/GeekTime/webook/internal/repository/cache"
@@ -14,6 +16,11 @@ import (
 	"github.com/google/wire"
 )
 
+type App struct {
+	server    *gin.Engine
+	consumers []events.Consumer
+}
+
 var interactiveServiceSet = wire.NewSet(
 	dao.NewGORMInteractiveDAO,
 	cache.NewRedisInteractiveCache,
@@ -21,7 +28,7 @@ var interactiveServiceSet = wire.NewSet(
 	service.NewInteractiveService,
 )
 
-func InitWebServer() *gin.Engine {
+func InitWebServer() *App {
 	wire.Build(
 		// log
 		ioc.InitLogger,
@@ -29,12 +36,19 @@ func InitWebServer() *gin.Engine {
 		// 第三方
 		ioc.InitDB,
 		ioc.InitRedis,
+		ioc.InitSaramaClient,
+		ioc.InitSyncProducer,
 
 		// dao
 		dao.NewGORMUserDAO,
 		dao.NewGORMArticleDAO,
 
 		interactiveServiceSet,
+
+		// 消息
+		article.NewSaramaSyncProducer,
+		article.NewInteractiveReadEventConsumer,
+		ioc.InitConsumers,
 
 		// 缓存
 		cache.NewRedisCodeCache,
@@ -60,6 +74,8 @@ func InitWebServer() *gin.Engine {
 		itoken.NewRedisTokenHandler,
 		ioc.InitGinMiddlewares,
 		ioc.InitWebServer,
+
+		wire.Struct(new(App), "*"),
 	)
-	return gin.Default()
+	return new(App)
 }

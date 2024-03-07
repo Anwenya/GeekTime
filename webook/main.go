@@ -10,7 +10,16 @@ import (
 
 func main() {
 	initLogger()
-	server := InitWebServer()
+
+	app := InitWebServer()
+	for _, c := range app.consumers {
+		err := c.Start()
+		if err != nil {
+			zap.L().Panic("启动失败", zap.Error(err))
+		}
+	}
+	server := app.server
+
 	err := server.Run(config.Config.App.HttpServerAddress)
 	if err != nil {
 		zap.L().Panic("启动失败", zap.Error(err))

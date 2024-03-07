@@ -1,7 +1,6 @@
 package web
 
 import (
-	"context"
 	"github.com/Anwenya/GeekTime/webook/internal/domain"
 	"github.com/Anwenya/GeekTime/webook/internal/service"
 	"github.com/Anwenya/GeekTime/webook/internal/web/token"
@@ -280,7 +279,7 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 	)
 	eg.Go(func() error {
 		var er error
-		art, er = h.articleService.GetPubById(ctx, id)
+		art, er = h.articleService.GetPubById(ctx, id, uc.Uid)
 		return er
 	})
 
@@ -303,20 +302,20 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 		)
 		return
 	}
-
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		err := h.interactiveService.IncrReadCnt(ctx, h.biz, art.Id)
-		if err != nil {
-			h.l.Error(
-				"更新阅读数失败",
-				logger.Int64("aid", art.Id),
-				logger.Error(err),
-			)
-		}
-	}()
+	// 更改为异步消息
+	//go func() {
+	//	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	//	defer cancel()
+	//
+	//	err := h.interactiveService.IncrReadCnt(ctx, h.biz, art.Id)
+	//	if err != nil {
+	//		h.l.Error(
+	//			"更新阅读数失败",
+	//			logger.Int64("aid", art.Id),
+	//			logger.Error(err),
+	//		)
+	//	}
+	//}()
 
 	ctx.JSON(http.StatusOK, ginx.Result{
 		Data: ArticleVo{

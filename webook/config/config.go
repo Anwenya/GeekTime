@@ -27,6 +27,10 @@ type config struct {
 		Address string `yaml:"address"`
 	} `yaml:"redis"`
 
+	Kafka struct {
+		Address []string `yaml:"address"`
+	} `yaml:"kafka"`
+
 	App struct {
 		HttpServerAddress string `yaml:"httpServerAddress"`
 	} `yaml:"app"`

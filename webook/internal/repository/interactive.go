@@ -10,6 +10,7 @@ import (
 
 type InteractiveRepository interface {
 	IncrReadCnt(ctx context.Context, biz string, bizId int64) error
+	BatchIncrReadCnt(ctx context.Context, biz []string, bizId []int64) error
 	IncrLike(ctx context.Context, biz string, id int64, uid int64) error
 	DecrLike(ctx context.Context, biz string, id int64, uid int64) error
 	AddCollectionItem(ctx context.Context, biz string, id int64, cid int64, uid int64) error
@@ -44,6 +45,29 @@ func (c *CachedInteractiveRepository) IncrReadCnt(ctx context.Context, biz strin
 	// 更新缓存失败会造成数据与缓存不一致
 	// 从实际使用上来说无关紧要
 	return c.cache.IncrReadCntIfPresent(ctx, biz, bizId)
+}
+
+func (c *CachedInteractiveRepository) BatchIncrReadCnt(ctx context.Context, biz []string, bizId []int64) error {
+	err := c.dao.BatchIncrReadCnt(ctx, biz, bizId)
+	if err != nil {
+		return err
+	}
+
+	// 更新缓存 可以考虑用管道
+	go func() {
+		for i := 0; i < len(biz); i++ {
+			err := c.cache.IncrReadCntIfPresent(ctx, biz[i], bizId[i])
+			if err != nil {
+				c.l.Error(
+					"回写缓存失败",
+					logger.String("biz", biz[i]),
+					logger.Int64("bizId", bizId[i]),
+					logger.Error(err),
+				)
+			}
+		}
+	}()
+	return nil
 }
 
 func (c *CachedInteractiveRepository) IncrLike(ctx context.Context, biz string, id int64, uid int64) error {

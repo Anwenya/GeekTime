@@ -7,6 +7,8 @@
 package main
 
 import (
+	"github.com/Anwenya/GeekTime/webook/internal/events"
+	"github.com/Anwenya/GeekTime/webook/internal/events/article"
 	"github.com/Anwenya/GeekTime/webook/internal/ioc"
 	"github.com/Anwenya/GeekTime/webook/internal/repository"
 	"github.com/Anwenya/GeekTime/webook/internal/repository/cache"
@@ -26,7 +28,7 @@ import (
 
 // Injectors from wire.go:
 
-func InitWebServer() *gin.Engine {
+func InitWebServer() *App {
 	cmdable := ioc.InitRedis()
 	tokenHandler := token.NewRedisTokenHandler(cmdable)
 	loggerV1 := ioc.InitLogger()
@@ -46,16 +48,30 @@ func InitWebServer() *gin.Engine {
 	articleDAO := dao.NewGORMArticleDAO(db)
 	articleCache := cache.NewRedisArticleCache(cmdable)
 	articleRepository := repository.NewCachedArticleRepository(articleDAO, articleCache, userRepository, loggerV1)
-	articleService := service.NewArticleService(articleRepository)
+	client := ioc.InitSaramaClient()
+	syncProducer := ioc.InitSyncProducer(client)
+	producer := article.NewSaramaSyncProducer(syncProducer)
+	articleService := service.NewArticleService(articleRepository, producer)
 	interactiveDAO := dao.NewGORMInteractiveDAO(db)
 	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
-	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDAO, interactiveCache)
+	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDAO, interactiveCache, loggerV1)
 	interactiveService := service.NewInteractiveService(interactiveRepository)
 	articleHandler := web.NewArticleHandler(loggerV1, articleService, interactiveService)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler, articleHandler)
-	return engine
+	interactiveReadEventConsumer := article.NewInteractiveReadEventConsumer(interactiveRepository, client, loggerV1)
+	v2 := ioc.InitConsumers(interactiveReadEventConsumer)
+	app := &App{
+		server:    engine,
+		consumers: v2,
+	}
+	return app
 }
 
 // wire.go:
+
+type App struct {
+	server    *gin.Engine
+	consumers []events.Consumer
+}
 
 var interactiveServiceSet = wire.NewSet(dao.NewGORMInteractiveDAO, cache.NewRedisInteractiveCache, repository.NewCachedInteractiveRepository, service.NewInteractiveService)

@@ -14,6 +14,10 @@ redis:
     address: "192.168.133.128:6379"
 #  address: "192.168.2.128:6379"
 
+kafka:
+    address:
+      - "192.168.2.128:9094"
+
 app:
   httpServerAddress: "0.0.0.0:8080"
 
