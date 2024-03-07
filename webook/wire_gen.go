@@ -59,7 +59,10 @@ func InitWebServer() *App {
 	articleHandler := web.NewArticleHandler(loggerV1, articleService, interactiveService)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler, articleHandler)
 	interactiveReadEventConsumer := article.NewInteractiveReadEventConsumer(interactiveRepository, client, loggerV1)
-	v2 := ioc.InitConsumers(interactiveReadEventConsumer)
+	historyDao := dao.NewGORMHistoryDAO(db)
+	readHistoryRepository := repository.NewCachedReadHistoryRepository(historyDao)
+	historyRecordConsumer := article.NewHistoryRecordConsumer(readHistoryRepository, client, loggerV1)
+	v2 := ioc.InitConsumers(interactiveReadEventConsumer, historyRecordConsumer)
 	app := &App{
 		server:    engine,
 		consumers: v2,

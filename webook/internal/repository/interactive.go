@@ -53,7 +53,8 @@ func (c *CachedInteractiveRepository) BatchIncrReadCnt(ctx context.Context, biz 
 		return err
 	}
 
-	// 更新缓存 可以考虑用管道
+	// 更新缓存
+	// todo 改为管道
 	go func() {
 		for i := 0; i < len(biz); i++ {
 			err := c.cache.IncrReadCntIfPresent(ctx, biz[i], bizId[i])

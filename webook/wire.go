@@ -42,12 +42,14 @@ func InitWebServer() *App {
 		// dao
 		dao.NewGORMUserDAO,
 		dao.NewGORMArticleDAO,
+		dao.NewGORMHistoryDAO,
 
 		interactiveServiceSet,
 
 		// 消息
 		article.NewSaramaSyncProducer,
 		article.NewInteractiveReadEventConsumer,
+		article.NewHistoryRecordConsumer,
 		ioc.InitConsumers,
 
 		// 缓存
@@ -59,6 +61,7 @@ func InitWebServer() *App {
 		repository.NewCachedCodeRepository,
 		repository.NewCachedUserRepository,
 		repository.NewCachedArticleRepository,
+		repository.NewCachedReadHistoryRepository,
 
 		// service
 		ioc.InitSMSService,

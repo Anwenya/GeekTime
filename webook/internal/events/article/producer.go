@@ -12,8 +12,9 @@ type Producer interface {
 }
 
 type ReadEvent struct {
-	Aid int64
-	Uid int64
+	Aid      int64
+	Uid      int64
+	ReadTime int64
 }
 
 type BatchReadEvent struct {

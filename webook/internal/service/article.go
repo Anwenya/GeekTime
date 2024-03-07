@@ -7,6 +7,7 @@ import (
 	"github.com/Anwenya/GeekTime/webook/internal/events/article"
 	"github.com/Anwenya/GeekTime/webook/internal/repository"
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
+	"time"
 )
 
 type ArticleService interface {
@@ -50,8 +51,9 @@ func (a articleService) GetPubById(ctx context.Context, id, uid int64) (domain.A
 			// 成功阅读文章时 生成一个记录阅读量的消息
 			err := a.producer.ProduceReadEvent(
 				article.ReadEvent{
-					Aid: id,
-					Uid: uid,
+					Aid:      id,
+					Uid:      uid,
+					ReadTime: time.Now().UnixMilli(),
 				},
 			)
 			if err != nil {
