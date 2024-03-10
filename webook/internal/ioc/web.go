@@ -5,11 +5,13 @@ import (
 	"github.com/Anwenya/GeekTime/webook/internal/web"
 	"github.com/Anwenya/GeekTime/webook/internal/web/middleware"
 	itoken "github.com/Anwenya/GeekTime/webook/internal/web/token"
+	"github.com/Anwenya/GeekTime/webook/pkg/ginx/decorator"
 	mprometheus "github.com/Anwenya/GeekTime/webook/pkg/ginx/middleware/prometheus"
 	"github.com/Anwenya/GeekTime/webook/pkg/ginx/middleware/ratelimit"
 	"github.com/Anwenya/GeekTime/webook/pkg/limiter"
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -39,6 +41,17 @@ func InitGinMiddlewares(
 		Name:      "_gin_http",
 		Help:      "统计GIN的HTTP接口",
 	}
+
+	// gin业务打点
+	decorator.InitCounter(
+		prometheus.CounterOpts{
+			Namespace: "GeekTime",
+			Subsystem: "webook",
+			Name:      "biz_code",
+			Help:      "统计业务状态码",
+		},
+	)
+
 	return []gin.HandlerFunc{
 
 		middleware.NewCorsMiddlewareBuilder().Build(),

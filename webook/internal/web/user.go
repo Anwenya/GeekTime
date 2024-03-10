@@ -2,6 +2,7 @@ package web
 
 import (
 	"github.com/Anwenya/GeekTime/webook/config"
+	"github.com/Anwenya/GeekTime/webook/internal/errs"
 	itoken "github.com/Anwenya/GeekTime/webook/internal/web/token"
 	"github.com/Anwenya/GeekTime/webook/pkg/ginx"
 	"github.com/Anwenya/GeekTime/webook/pkg/ginx/decorator"
@@ -62,23 +63,35 @@ func (userHandler *UserHandler) SignUp(
 
 	isEmail, err := userHandler.emailRexExp.MatchString(req.Email)
 	if err != nil {
-		return ginx.Result{Code: 5, Msg: "系统错误"}, err
+		return ginx.Result{
+			Code: errs.UserInternalServerError,
+			Msg:  "系统错误",
+		}, err
 	}
 	if !isEmail {
-		return ginx.Result{Code: 5, Msg: "非法邮箱格式"}, err
+		return ginx.Result{
+			Code: errs.UserInvalidInput,
+			Msg:  "非法邮箱格式",
+		}, err
 	}
 
 	if req.Password != req.ConfirmPassword {
-		return ginx.Result{Code: 5, Msg: "两次输入密码不一致"}, err
+		return ginx.Result{
+			Code: errs.UserInvalidInput,
+			Msg:  "两次输入密码不一致",
+		}, err
 	}
 
 	isPassword, err := userHandler.passwordRexExp.MatchString(req.Password)
 	if err != nil {
-		return ginx.Result{Code: 5, Msg: "系统错误"}, err
+		return ginx.Result{
+			Code: errs.UserInternalServerError,
+			Msg:  "系统错误",
+		}, err
 	}
 	if !isPassword {
 		return ginx.Result{
-			Code: 5,
+			Code: errs.UserInvalidInput,
 			Msg:  "密码必须包含字母、数字、特殊字符，并且不少于八位",
 		}, err
 	}
@@ -94,9 +107,15 @@ func (userHandler *UserHandler) SignUp(
 	case nil:
 		return ginx.Result{Msg: "OK"}, nil
 	case service.ErrDuplicateEmail:
-		return ginx.Result{Code: 5, Msg: "该邮箱已被注册"}, err
+		return ginx.Result{
+			Code: errs.UserDuplicateEmail,
+			Msg:  "该邮箱已被注册",
+		}, err
 	default:
-		return ginx.Result{Code: 5, Msg: "系统错误"}, err
+		return ginx.Result{
+			Code: errs.UserInternalServerError,
+			Msg:  "系统错误",
+		}, err
 	}
 }
 

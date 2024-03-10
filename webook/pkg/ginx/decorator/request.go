@@ -4,11 +4,21 @@ import (
 	"github.com/Anwenya/GeekTime/webook/pkg/ginx"
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 )
 
 var L logger.LoggerV1 = logger.NewZapLogger(zap.L())
+
+// 业务打点 统计状态码分布
+var vector *prometheus.CounterVec
+
+func InitCounter(opt prometheus.CounterOpts) {
+	vector = prometheus.NewCounterVec(opt, []string{"code"})
+	prometheus.MustRegister(vector)
+}
 
 func WrapBodyAndClaims[Req any, Claims any](
 	bizFunc func(ctx *gin.Context, req Req, uc Claims) (ginx.Result, error),
@@ -31,6 +41,7 @@ func WrapBodyAndClaims[Req any, Claims any](
 			return
 		}
 		res, err := bizFunc(ctx, req, uc)
+		vector.WithLabelValues(strconv.Itoa(res.Code)).Inc()
 		if err != nil {
 			L.Error("执行业务逻辑失败", logger.Error(err))
 		}
@@ -49,6 +60,7 @@ func WrapBody[Req any](
 		}
 		L.Debug("输入参数", logger.Field{Key: "req", Val: req})
 		res, err := bizFunc(ctx, req)
+		vector.WithLabelValues(strconv.Itoa(res.Code)).Inc()
 		if err != nil {
 			L.Error("执行业务逻辑失败", logger.Error(err))
 		}
@@ -71,6 +83,7 @@ func WrapClaims[Claims any](
 			return
 		}
 		res, err := bizFn(ctx, uc)
+		vector.WithLabelValues(strconv.Itoa(res.Code)).Inc()
 		if err != nil {
 			L.Error("执行业务逻辑失败", logger.Error(err))
 		}
