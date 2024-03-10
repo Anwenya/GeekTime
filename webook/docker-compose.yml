@@ -31,10 +31,10 @@ services:
       - "27017:27017"
 
   kafka:
-    image: 'bitnami/kafka:3.6.0'
+    image: "bitnami/kafka:3.6.0"
     ports:
-      - '9092:9092'
-      - '9094:9094'
+      - "9092:9092"
+      - "9094:9094"
     environment:
       - KAFKA_CFG_NODE_ID=0
       # 允许自动创建 topic，线上不要开启
@@ -47,3 +47,10 @@ services:
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+
+  prometheus:
+    image: prom/prometheus:v2.47.2
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"

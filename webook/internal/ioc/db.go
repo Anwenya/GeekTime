@@ -2,13 +2,16 @@ package ioc
 
 import (
 	"github.com/Anwenya/GeekTime/webook/config"
+	"github.com/Anwenya/GeekTime/webook/pkg/gormx"
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/prometheus/client_golang/prometheus"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	glogger "gorm.io/gorm/logger"
+	gprometheus "gorm.io/plugin/prometheus"
 )
 
 func InitDB(l logger.LoggerV1) *gorm.DB {
@@ -28,6 +31,53 @@ func InitDB(l logger.LoggerV1) *gorm.DB {
 		panic(any(err))
 	}
 	l.Info("数据库连接成功")
+
+	// gorm提供的prometheus插件
+	// 仅仅记录一些数据库连接的状态
+	err = db.Use(
+		gprometheus.New(
+			gprometheus.Config{
+				DBName:          "webook",
+				RefreshInterval: 15,
+				MetricsCollector: []gprometheus.MetricsCollector{
+					&gprometheus.MySQL{
+						VariableNames: []string{"thread_running"},
+					},
+				},
+			},
+		),
+	)
+	if err != nil {
+		l.Error("数据库插件启动失败")
+		panic(any(err))
+	}
+
+	// 自定义插件记录sql的执行耗时
+	callback := gormx.NewCallbacks(
+		prometheus.SummaryOpts{
+			Namespace: "GeekTime",
+			Subsystem: "webook",
+			Name:      "_gorm_db",
+			Help:      "统计GORM的数据库操作",
+			ConstLabels: map[string]string{
+				"instance_id": "my_instance",
+			},
+			Objectives: map[float64]float64{
+				0.5:   0.01,
+				0.75:  0.01,
+				0.9:   0.01,
+				0.99:  0.001,
+				0.999: 0.0001,
+			},
+		},
+	)
+
+	err = db.Use(callback)
+	if err != nil {
+		l.Error("数据库插件启动失败")
+		panic(any(err))
+	}
+
 	mysqlMigration(l)
 	return db
 }

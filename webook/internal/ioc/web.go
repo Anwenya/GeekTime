@@ -5,6 +5,7 @@ import (
 	"github.com/Anwenya/GeekTime/webook/internal/web"
 	"github.com/Anwenya/GeekTime/webook/internal/web/middleware"
 	itoken "github.com/Anwenya/GeekTime/webook/internal/web/token"
+	mprometheus "github.com/Anwenya/GeekTime/webook/pkg/ginx/middleware/prometheus"
 	"github.com/Anwenya/GeekTime/webook/pkg/ginx/middleware/ratelimit"
 	"github.com/Anwenya/GeekTime/webook/pkg/limiter"
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
@@ -31,7 +32,15 @@ func InitGinMiddlewares(
 	th itoken.TokenHandler,
 	l logger.LoggerV1,
 ) []gin.HandlerFunc {
+	// 自定义gin插件
+	pb := &mprometheus.Builder{
+		Namespace: "GeekTime",
+		Subsystem: "webook",
+		Name:      "_gin_http",
+		Help:      "统计GIN的HTTP接口",
+	}
 	return []gin.HandlerFunc{
+
 		middleware.NewCorsMiddlewareBuilder().Build(),
 		//ratelimit.NewSlideWindowBuilder(redisClient, time.Second, 1).Build(),
 		ratelimit.NewBuilder(
@@ -45,6 +54,8 @@ func InitGinMiddlewares(
 				l.Debug("", logger.Field{Key: "req", Val: al})
 			},
 		).AllowReqBody().AllowRespBody().Build(),
+		pb.BuildResponseTime(),
+		pb.BuildActiveRequest(),
 		middleware.NewLoginTokenMiddlewareBuilder(th).Build(),
 	}
 }
