@@ -18,3 +18,29 @@ type ArticleVo struct {
 	CreateTime string `json:"createTime,omitempty"`
 	UpdateTime string `json:"updateTime,omitempty"`
 }
+
+type PublishReq struct {
+	Id      int64
+	Title   string `json:"title"`
+	Content string `json:"content"`
+}
+
+type ArticleEditReq struct {
+	Id      int64
+	Title   string `json:"title"`
+	Content string `json:"content"`
+}
+
+type ArticleWithdrawReq struct {
+	Id int64
+}
+
+type ArticleLikeReq struct {
+	Id   int64 `json:"id"`
+	Like bool  `json:"like"`
+}
+
+type ArticleCollectReq struct {
+	Id  int64 `json:"id"`
+	Cid int64 `json:"cid"`
+}
