@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 func InitWebServer(
@@ -62,6 +63,8 @@ func InitGinMiddlewares(
 				10,
 				1),
 		).Build(),
+		// gin提供的opentelemetry插件
+		otelgin.Middleware("webook"),
 		middleware.NewLogMiddlewareBuilder(
 			func(ctx context.Context, al middleware.AccessLog) {
 				l.Debug("", logger.Field{Key: "req", Val: al})

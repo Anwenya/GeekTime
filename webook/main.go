@@ -1,18 +1,30 @@
 package main
 
 import (
+	"context"
 	"github.com/Anwenya/GeekTime/webook/config"
+	"github.com/Anwenya/GeekTime/webook/internal/ioc"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"net/http"
+	"time"
 )
 
 func main() {
 	initLogger()
 	initPrometheus()
+
+	// 可观测性
+	tpCancel := ioc.InitOTEL()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		tpCancel(ctx)
+	}()
+
 	app := InitWebServer()
 	for _, c := range app.consumers {
 		err := c.Start()

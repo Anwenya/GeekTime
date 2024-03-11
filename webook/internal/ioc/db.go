@@ -11,6 +11,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	glogger "gorm.io/gorm/logger"
+	"gorm.io/plugin/opentelemetry/tracing"
 	gprometheus "gorm.io/plugin/prometheus"
 )
 
@@ -73,6 +74,18 @@ func InitDB(l logger.LoggerV1) *gorm.DB {
 	)
 
 	err = db.Use(callback)
+	if err != nil {
+		l.Error("数据库插件启动失败")
+		panic(any(err))
+	}
+
+	// gorm提供的opentelemetry插件
+	err = db.Use(
+		tracing.NewPlugin(
+			tracing.WithoutMetrics(),
+			tracing.WithDBName("webook"),
+		),
+	)
 	if err != nil {
 		l.Error("数据库插件启动失败")
 		panic(any(err))

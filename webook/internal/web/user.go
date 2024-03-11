@@ -96,8 +96,10 @@ func (userHandler *UserHandler) SignUp(
 		}, err
 	}
 
+	// 这里要用ctx.Request.Context()的context才能trace request
+	// gin的context有额外的封装
 	err = userHandler.userService.Signup(
-		ctx,
+		ctx.Request.Context(),
 		domain.User{
 			Email:    req.Email,
 			Password: req.Password,
