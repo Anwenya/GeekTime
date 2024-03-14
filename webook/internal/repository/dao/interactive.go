@@ -16,6 +16,7 @@ type InteractiveDAO interface {
 	GetLikeInfo(ctx context.Context, biz string, id int64, uid int64) (UserLikeBiz, error)
 	GetCollectInfo(ctx context.Context, biz string, id int64, uid int64) (UserCollectionBiz, error)
 	Get(ctx context.Context, biz string, id int64) (Interactive, error)
+	GetByIds(ctx context.Context, biz string, ids []int64) ([]Interactive, error)
 }
 
 type GORMInteractiveDAO struct {
@@ -24,6 +25,17 @@ type GORMInteractiveDAO struct {
 
 func NewGORMInteractiveDAO(db *gorm.DB) InteractiveDAO {
 	return &GORMInteractiveDAO{db: db}
+}
+
+// GetByIds
+// 根据一批文章id 查询其对应的互动量
+func (dao *GORMInteractiveDAO) GetByIds(ctx context.Context, biz string, ids []int64) ([]Interactive, error) {
+	var res []Interactive
+	err := dao.db.WithContext(ctx).
+		Where("biz = ? AND biz_id IN ?", biz, ids).
+		Find(&res).
+		Error
+	return res, err
 }
 
 func (dao *GORMInteractiveDAO) IncrReadCnt(ctx context.Context, biz string, bizId int64) error {

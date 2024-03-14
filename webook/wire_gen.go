@@ -18,6 +18,7 @@ import (
 	"github.com/Anwenya/GeekTime/webook/internal/web/token"
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
+	"github.com/robfig/cron/v3"
 )
 
 import (
@@ -63,9 +64,13 @@ func InitWebServer() *App {
 	readHistoryRepository := repository.NewCachedReadHistoryRepository(historyDao)
 	historyRecordConsumer := article.NewHistoryRecordConsumer(readHistoryRepository, client, loggerV1)
 	v2 := ioc.InitConsumers(interactiveReadEventConsumer, historyRecordConsumer)
+	rankingService := service.NewBatchRankingService(interactiveService, articleService)
+	job := ioc.InitRankingJob(rankingService)
+	cron := ioc.InitJobs(loggerV1, job)
 	app := &App{
 		server:    engine,
 		consumers: v2,
+		cron:      cron,
 	}
 	return app
 }
@@ -75,6 +80,9 @@ func InitWebServer() *App {
 type App struct {
 	server    *gin.Engine
 	consumers []events.Consumer
+	cron      *cron.Cron
 }
 
 var interactiveServiceSet = wire.NewSet(dao.NewGORMInteractiveDAO, cache.NewRedisInteractiveCache, repository.NewCachedInteractiveRepository, service.NewInteractiveService)
+
+var rankingServiceSet = wire.NewSet(cache.NewRedisRankingCache, repository.NewCachedRankingRepository, service.NewBatchRankingService)

@@ -17,6 +17,7 @@ type ArticleService interface {
 	GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error)
 	GetById(ctx context.Context, id int64) (domain.Article, error)
 	GetPubById(ctx context.Context, id, uid int64) (domain.Article, error)
+	ListPub(ctx context.Context, start time.Time, offset, limit int) ([]domain.Article, error)
 }
 
 type articleService struct {
@@ -40,11 +41,15 @@ func NewArticleService(
 	}
 }
 
-func (a articleService) GetById(ctx context.Context, id int64) (domain.Article, error) {
+func (a *articleService) ListPub(ctx context.Context, start time.Time, offset, limit int) ([]domain.Article, error) {
+	return a.repo.ListPub(ctx, start, offset, limit)
+}
+
+func (a *articleService) GetById(ctx context.Context, id int64) (domain.Article, error) {
 	return a.repo.GetById(ctx, id)
 }
 
-func (a articleService) GetPubById(ctx context.Context, id, uid int64) (domain.Article, error) {
+func (a *articleService) GetPubById(ctx context.Context, id, uid int64) (domain.Article, error) {
 	res, err := a.repo.GetPubById(ctx, id)
 	go func() {
 		if err == nil {
@@ -69,11 +74,11 @@ func (a articleService) GetPubById(ctx context.Context, id, uid int64) (domain.A
 	return res, err
 }
 
-func (a articleService) GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error) {
+func (a *articleService) GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error) {
 	return a.repo.GetByAuthor(ctx, uid, offset, limit)
 }
 
-func (a articleService) Save(ctx context.Context, art domain.Article) (int64, error) {
+func (a *articleService) Save(ctx context.Context, art domain.Article) (int64, error) {
 	art.Status = domain.ArticleStatusUnpublished
 	if art.Id > 0 {
 		err := a.repo.Update(ctx, art)
@@ -82,7 +87,7 @@ func (a articleService) Save(ctx context.Context, art domain.Article) (int64, er
 	return a.repo.Create(ctx, art)
 }
 
-func (a articleService) Publish(ctx context.Context, art domain.Article) (int64, error) {
+func (a *articleService) Publish(ctx context.Context, art domain.Article) (int64, error) {
 	art.Status = domain.ArticleStatusPublished
 	return a.repo.Sync(ctx, art)
 }

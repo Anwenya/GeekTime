@@ -20,6 +20,7 @@ type ArticleDAO interface {
 	GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]Article, error)
 	GetById(ctx context.Context, id int64) (Article, error)
 	GetPubById(ctx context.Context, id int64) (PublishedArticle, error)
+	ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]PublishedArticle, error)
 }
 
 // GORMArticleDAO
@@ -33,6 +34,25 @@ func NewGORMArticleDAO(db *gorm.DB) ArticleDAO {
 	return &GORMArticleDAO{
 		db: db,
 	}
+}
+
+// ListPub
+// 分页查询指定时间之前的文章
+// 用于计算热榜
+func (a *GORMArticleDAO) ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]PublishedArticle, error) {
+	var res []PublishedArticle
+	const ArticleStatusPublished = 2
+	// 处于发布状态的
+	err := a.db.WithContext(ctx).
+		Where(
+			"update_time<? AND status = ?",
+			start.UnixMilli(),
+			ArticleStatusPublished,
+		).
+		Offset(offset).
+		Limit(limit).
+		Find(&res).Error
+	return res, err
 }
 
 // GetByAuthor 查询文章列表
@@ -253,6 +273,10 @@ func NewArticleMongoDBDAO(db *mongo.Database, sf *snowflake.Node) ArticleDAO {
 		liveCol: db.Collection("published_articles"),
 		col:     db.Collection("articles"),
 	}
+}
+
+func (a *ArticleMongoDBDAO) ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]PublishedArticle, error) {
+	panic("implement me")
 }
 
 // Insert 插入到作者集合

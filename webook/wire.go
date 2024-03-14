@@ -14,11 +14,13 @@ import (
 	itoken "github.com/Anwenya/GeekTime/webook/internal/web/token"
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
+	"github.com/robfig/cron/v3"
 )
 
 type App struct {
 	server    *gin.Engine
 	consumers []events.Consumer
+	cron      *cron.Cron
 }
 
 var interactiveServiceSet = wire.NewSet(
@@ -26,6 +28,12 @@ var interactiveServiceSet = wire.NewSet(
 	cache.NewRedisInteractiveCache,
 	repository.NewCachedInteractiveRepository,
 	service.NewInteractiveService,
+)
+
+var rankingServiceSet = wire.NewSet(
+	cache.NewRedisRankingCache,
+	repository.NewCachedRankingRepository,
+	service.NewBatchRankingService,
 )
 
 func InitWebServer() *App {
@@ -45,6 +53,9 @@ func InitWebServer() *App {
 		dao.NewGORMHistoryDAO,
 
 		interactiveServiceSet,
+		rankingServiceSet,
+		ioc.InitRankingJob,
+		ioc.InitJobs,
 
 		// 消息
 		article.NewSaramaSyncProducer,

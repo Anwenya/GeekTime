@@ -32,6 +32,13 @@ func main() {
 			zap.L().Panic("启动失败", zap.Error(err))
 		}
 	}
+
+	app.cron.Start()
+	defer func() {
+		// 等待定时任务退出
+		<-app.cron.Stop().Done()
+	}()
+
 	server := app.server
 
 	err := server.Run(config.Config.App.HttpServerAddress)
