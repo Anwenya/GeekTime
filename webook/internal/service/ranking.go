@@ -46,7 +46,11 @@ func NewBatchRankingService(intrSvc InteractiveService, artSvc ArticleService) R
 }
 
 func (b *BatchRankingService) TopN(ctx context.Context) error {
-	panic("implement me")
+	arts, err := b.topN(ctx)
+	if err != nil {
+		return err
+	}
+	return b.repo.ReplaceTopN(ctx, arts)
 }
 
 func (b *BatchRankingService) topN(ctx context.Context) ([]domain.Article, error) {
@@ -105,15 +109,17 @@ func (b *BatchRankingService) topN(ctx context.Context) ([]domain.Article, error
 				score: score,
 				art:   art,
 			}
-			err = topNQueue.Enqueue(ele)
-			if err == queue.ErrOutOfCapacity {
-				// 满
+
+			// 满
+			if topNQueue.Len() >= b.n {
 				minEle, _ := topNQueue.Dequeue()
 				if minEle.score < score {
 					_ = topNQueue.Enqueue(ele)
 				} else {
 					_ = topNQueue.Enqueue(minEle)
 				}
+			} else {
+				_ = topNQueue.Enqueue(ele)
 			}
 		}
 
