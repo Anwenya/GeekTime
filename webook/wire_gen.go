@@ -65,7 +65,8 @@ func InitWebServer() *App {
 	historyRecordConsumer := article.NewHistoryRecordConsumer(readHistoryRepository, client, loggerV1)
 	v2 := ioc.InitConsumers(interactiveReadEventConsumer, historyRecordConsumer)
 	rankingService := service.NewBatchRankingService(interactiveService, articleService)
-	job := ioc.InitRankingJob(rankingService)
+	rlockClient := ioc.InitRlockClient(cmdable)
+	job := ioc.InitRankingJob(rankingService, rlockClient, loggerV1)
 	cron := ioc.InitJobs(loggerV1, job)
 	app := &App{
 		server:    engine,

@@ -17,6 +17,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.17.0
 	github.com/google/uuid v1.4.0
 	github.com/google/wire v0.6.0
+	github.com/gotomicro/redis-lock v0.0.3
 	github.com/lithammer/shortuuid/v4 v4.0.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/o1egl/paseto v1.0.0

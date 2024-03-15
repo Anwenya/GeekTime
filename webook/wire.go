@@ -46,6 +46,7 @@ func InitWebServer() *App {
 		ioc.InitRedis,
 		ioc.InitSaramaClient,
 		ioc.InitSyncProducer,
+		ioc.InitRlockClient,
 
 		// dao
 		dao.NewGORMUserDAO,
