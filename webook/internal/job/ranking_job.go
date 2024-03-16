@@ -41,6 +41,9 @@ func (r *RankingJob) Name() string {
 	return "ranking"
 }
 
+// Run
+// 使用基于redis的分布式锁 保证只有一个实例可以执行该任务
+// 在拿到锁后自动续约
 func (r *RankingJob) Run() error {
 	// localLock 是用来保护 lock的
 	r.localLock.Lock()
