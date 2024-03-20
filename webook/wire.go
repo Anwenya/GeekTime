@@ -3,6 +3,11 @@
 package main
 
 import (
+	events2 "github.com/Anwenya/GeekTime/webook/interactive/events"
+	service2 "github.com/Anwenya/GeekTime/webook/interactive/repository"
+	cache2 "github.com/Anwenya/GeekTime/webook/interactive/repository/cache"
+	dao2 "github.com/Anwenya/GeekTime/webook/interactive/repository/dao"
+	service3 "github.com/Anwenya/GeekTime/webook/interactive/service"
 	"github.com/Anwenya/GeekTime/webook/internal/events"
 	"github.com/Anwenya/GeekTime/webook/internal/events/article"
 	"github.com/Anwenya/GeekTime/webook/internal/ioc"
@@ -24,10 +29,10 @@ type App struct {
 }
 
 var interactiveServiceSet = wire.NewSet(
-	dao.NewGORMInteractiveDAO,
-	cache.NewRedisInteractiveCache,
-	repository.NewCachedInteractiveRepository,
-	service.NewInteractiveService,
+	dao2.NewGORMInteractiveDAO,
+	cache2.NewRedisInteractiveCache,
+	service2.NewCachedInteractiveRepository,
+	service3.NewInteractiveService,
 )
 
 var rankingServiceSet = wire.NewSet(
@@ -60,7 +65,7 @@ func InitWebServer() *App {
 
 		// 消息
 		article.NewSaramaSyncProducer,
-		article.NewInteractiveReadEventConsumer,
+		events2.NewInteractiveReadEventConsumer,
 		article.NewHistoryRecordConsumer,
 		ioc.InitConsumers,
 

@@ -3,6 +3,10 @@
 package startup
 
 import (
+	repo2 "github.com/Anwenya/GeekTime/webook/interactive/repository"
+	cache2 "github.com/Anwenya/GeekTime/webook/interactive/repository/cache"
+	dao2 "github.com/Anwenya/GeekTime/webook/interactive/repository/dao"
+	service2 "github.com/Anwenya/GeekTime/webook/interactive/service"
 	"github.com/Anwenya/GeekTime/webook/internal/events/article"
 	"github.com/Anwenya/GeekTime/webook/internal/ioc"
 	"github.com/Anwenya/GeekTime/webook/internal/repository"
@@ -33,10 +37,10 @@ var userRepoSet = wire.NewSet(
 )
 
 var interactiveServiceSet = wire.NewSet(
-	dao.NewGORMInteractiveDAO,
-	cache.NewRedisInteractiveCache,
-	repository.NewCachedInteractiveRepository,
-	service.NewInteractiveService,
+	dao2.NewGORMInteractiveDAO,
+	cache2.NewRedisInteractiveCache,
+	repo2.NewCachedInteractiveRepository,
+	service2.NewInteractiveService,
 )
 
 func InitWebServer() *gin.Engine {

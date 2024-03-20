@@ -4,7 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/Anwenya/GeekTime/webook/internal/domain"
+	"github.com/Anwenya/GeekTime/webook/interactive/domain"
 	"github.com/redis/go-redis/v9"
 	"strconv"
 	"time"
@@ -75,6 +75,7 @@ func (i RedisInteractiveCache) Get(ctx context.Context, biz string, id int64) (d
 	}
 
 	var interactive domain.Interactive
+	interactive.BizId = id
 	interactive.CollectCnt, _ = strconv.ParseInt(res[fieldCollectCnt], 10, 64)
 	interactive.LikeCnt, _ = strconv.ParseInt(res[fieldLikeCnt], 10, 64)
 	interactive.ReadCnt, _ = strconv.ParseInt(res[fieldReadCnt], 10, 64)

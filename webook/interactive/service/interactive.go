@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"github.com/Anwenya/GeekTime/webook/internal/domain"
-	"github.com/Anwenya/GeekTime/webook/internal/repository"
+	"github.com/Anwenya/GeekTime/webook/interactive/domain"
+	"github.com/Anwenya/GeekTime/webook/interactive/repository"
 	"golang.org/x/sync/errgroup"
 )
 

@@ -1,8 +1,8 @@
-package article
+package events
 
 import (
 	"context"
-	"github.com/Anwenya/GeekTime/webook/internal/repository"
+	"github.com/Anwenya/GeekTime/webook/interactive/repository"
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"github.com/Anwenya/GeekTime/webook/pkg/saramax"
 	"github.com/IBM/sarama"
@@ -28,7 +28,7 @@ func NewInteractiveReadEventConsumer(
 }
 
 func (i *InteractiveReadEventConsumer) Start() error {
-	cg, err := sarama.NewConsumerGroupFromClient("interactive", i.client)
+	cg, err := sarama.NewConsumerGroupFromClient(TopicGroupID, i.client)
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (i *InteractiveReadEventConsumer) Start() error {
 }
 
 func (i *InteractiveReadEventConsumer) StartBatch() error {
-	cg, err := sarama.NewConsumerGroupFromClient("interactive", i.client)
+	cg, err := sarama.NewConsumerGroupFromClient(TopicGroupID, i.client)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (i *InteractiveReadEventConsumer) Consume(
 ) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	return i.repo.IncrReadCnt(ctx, "article", event.Aid)
+	return i.repo.IncrReadCnt(ctx, Biz, event.Aid)
 }
 
 func (i *InteractiveReadEventConsumer) BatchConsume(
@@ -82,7 +82,7 @@ func (i *InteractiveReadEventConsumer) BatchConsume(
 	bizIds := make([]int64, 0, len(events))
 
 	for _, event := range events {
-		bizs = append(bizs, "article")
+		bizs = append(bizs, Biz)
 		bizIds = append(bizIds, event.Aid)
 	}
 

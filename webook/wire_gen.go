@@ -7,7 +7,12 @@
 package main
 
 import (
-	"github.com/Anwenya/GeekTime/webook/internal/events"
+	"github.com/Anwenya/GeekTime/webook/interactive/events"
+	repository2 "github.com/Anwenya/GeekTime/webook/interactive/repository"
+	cache2 "github.com/Anwenya/GeekTime/webook/interactive/repository/cache"
+	dao2 "github.com/Anwenya/GeekTime/webook/interactive/repository/dao"
+	service2 "github.com/Anwenya/GeekTime/webook/interactive/service"
+	events2 "github.com/Anwenya/GeekTime/webook/internal/events"
 	"github.com/Anwenya/GeekTime/webook/internal/events/article"
 	"github.com/Anwenya/GeekTime/webook/internal/ioc"
 	"github.com/Anwenya/GeekTime/webook/internal/repository"
@@ -53,13 +58,13 @@ func InitWebServer() *App {
 	syncProducer := ioc.InitSyncProducer(client)
 	producer := article.NewSaramaSyncProducer(syncProducer)
 	articleService := service.NewArticleService(articleRepository, producer)
-	interactiveDAO := dao.NewGORMInteractiveDAO(db)
-	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
-	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDAO, interactiveCache, loggerV1)
-	interactiveService := service.NewInteractiveService(interactiveRepository)
+	interactiveDAO := dao2.NewGORMInteractiveDAO(db)
+	interactiveCache := cache2.NewRedisInteractiveCache(cmdable)
+	interactiveRepository := repository2.NewCachedInteractiveRepository(interactiveDAO, interactiveCache, loggerV1)
+	interactiveService := service2.NewInteractiveService(interactiveRepository)
 	articleHandler := web.NewArticleHandler(loggerV1, articleService, interactiveService)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WechatHandler, articleHandler)
-	interactiveReadEventConsumer := article.NewInteractiveReadEventConsumer(interactiveRepository, client, loggerV1)
+	interactiveReadEventConsumer := events.NewInteractiveReadEventConsumer(interactiveRepository, client, loggerV1)
 	historyDao := dao.NewGORMHistoryDAO(db)
 	readHistoryRepository := repository.NewCachedReadHistoryRepository(historyDao)
 	historyRecordConsumer := article.NewHistoryRecordConsumer(readHistoryRepository, client, loggerV1)
@@ -80,10 +85,10 @@ func InitWebServer() *App {
 
 type App struct {
 	server    *gin.Engine
-	consumers []events.Consumer
+	consumers []events2.Consumer
 	cron      *cron.Cron
 }
 
-var interactiveServiceSet = wire.NewSet(dao.NewGORMInteractiveDAO, cache.NewRedisInteractiveCache, repository.NewCachedInteractiveRepository, service.NewInteractiveService)
+var interactiveServiceSet = wire.NewSet(dao2.NewGORMInteractiveDAO, cache2.NewRedisInteractiveCache, repository2.NewCachedInteractiveRepository, service2.NewInteractiveService)
 
 var rankingServiceSet = wire.NewSet(cache.NewRedisRankingCache, repository.NewCachedRankingRepository, service.NewBatchRankingService)

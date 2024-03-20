@@ -1,6 +1,8 @@
 package web
 
 import (
+	domain2 "github.com/Anwenya/GeekTime/webook/interactive/domain"
+	service2 "github.com/Anwenya/GeekTime/webook/interactive/service"
 	"github.com/Anwenya/GeekTime/webook/internal/domain"
 	"github.com/Anwenya/GeekTime/webook/internal/service"
 	"github.com/Anwenya/GeekTime/webook/internal/web/token"
@@ -17,7 +19,7 @@ import (
 
 type ArticleHandler struct {
 	articleService     service.ArticleService
-	interactiveService service.InteractiveService
+	interactiveService service2.InteractiveService
 	l                  logger.LoggerV1
 	biz                string
 }
@@ -25,7 +27,7 @@ type ArticleHandler struct {
 func NewArticleHandler(
 	l logger.LoggerV1,
 	articleService service.ArticleService,
-	interactiveService service.InteractiveService,
+	interactiveService service2.InteractiveService,
 ) *ArticleHandler {
 	return &ArticleHandler{
 		l:                  l,
@@ -254,7 +256,7 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 	var (
 		eg          errgroup.Group
 		art         domain.Article
-		interactive domain.Interactive
+		interactive domain2.Interactive
 	)
 	eg.Go(func() error {
 		var er error
