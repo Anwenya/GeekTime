@@ -56,3 +56,6 @@ mock:
 
 	@mockgen -package mockredis -destination "./internal/repository/cache/mockredis/redis.mock.go" github.com/redis/go-redis/v9 Cmdable
 	@go mod tidy
+
+grpc:
+	@buf generate api/proto
