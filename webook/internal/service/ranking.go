@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"github.com/Anwenya/GeekTime/webook/interactive/service"
+	interactivev1 "github.com/Anwenya/GeekTime/webook/api/proto/gen/interactive/v1"
 	"github.com/Anwenya/GeekTime/webook/internal/domain"
 	"github.com/Anwenya/GeekTime/webook/internal/repository"
 	"github.com/ecodeclub/ekit/queue"
@@ -18,7 +18,7 @@ type RankingService interface {
 
 type BatchRankingService struct {
 	// 查询文章的点赞数
-	intrSvc service.InteractiveService
+	intrSvc interactivev1.InteractiveServiceClient
 	// 查询时间段内的文章
 	artSvc ArticleService
 
@@ -30,7 +30,10 @@ type BatchRankingService struct {
 	repo repository.RankingRepository
 }
 
-func NewBatchRankingService(intrSvc service.InteractiveService, artSvc ArticleService) RankingService {
+func NewBatchRankingService(
+	intrSvc interactivev1.InteractiveServiceClient,
+	artSvc ArticleService,
+) RankingService {
 	return &BatchRankingService{
 		intrSvc:   intrSvc,
 		artSvc:    artSvc,
@@ -97,11 +100,15 @@ func (b *BatchRankingService) topN(ctx context.Context) ([]domain.Article, error
 		)
 
 		// 取点赞数
-		intrMap, err := b.intrSvc.GetByIds(ctx, "article", ids)
+		intrResp, err := b.intrSvc.GetByIds(ctx, &interactivev1.GetByIdsRequest{
+			Biz: "article",
+			Ids: ids,
+		})
 		if err != nil {
 			return nil, err
 		}
 
+		intrMap := intrResp.GetInteractives()
 		for _, art := range arts {
 			intr := intrMap[art.Id]
 

@@ -32,3 +32,8 @@ secretKey:
   session1: "cAtUc5znbkPRoopfEAvUgPhUvoUn9DxX"
   session2: "cAtUc5znbkPR3chfEAvUgPhJLoUn9DxX"
 
+grpc:
+  client:
+    interactive:
+      address: ":8090"
+      threshold: 100

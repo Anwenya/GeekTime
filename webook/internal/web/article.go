@@ -1,8 +1,7 @@
 package web
 
 import (
-	domain2 "github.com/Anwenya/GeekTime/webook/interactive/domain"
-	service2 "github.com/Anwenya/GeekTime/webook/interactive/service"
+	interactivev1 "github.com/Anwenya/GeekTime/webook/api/proto/gen/interactive/v1"
 	"github.com/Anwenya/GeekTime/webook/internal/domain"
 	"github.com/Anwenya/GeekTime/webook/internal/service"
 	"github.com/Anwenya/GeekTime/webook/internal/web/token"
@@ -19,7 +18,7 @@ import (
 
 type ArticleHandler struct {
 	articleService     service.ArticleService
-	interactiveService service2.InteractiveService
+	interactiveService interactivev1.InteractiveServiceClient
 	l                  logger.LoggerV1
 	biz                string
 }
@@ -27,7 +26,7 @@ type ArticleHandler struct {
 func NewArticleHandler(
 	l logger.LoggerV1,
 	articleService service.ArticleService,
-	interactiveService service2.InteractiveService,
+	interactiveService interactivev1.InteractiveServiceClient,
 ) *ArticleHandler {
 	return &ArticleHandler{
 		l:                  l,
@@ -256,7 +255,7 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 	var (
 		eg          errgroup.Group
 		art         domain.Article
-		interactive domain2.Interactive
+		interactive *interactivev1.GetResponse
 	)
 	eg.Go(func() error {
 		var er error
@@ -266,7 +265,13 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 
 	eg.Go(func() error {
 		var er error
-		interactive, er = h.interactiveService.Get(ctx, h.biz, id, uc.Uid)
+		interactive, er = h.interactiveService.Get(
+			ctx,
+			&interactivev1.GetRequest{
+				Biz:   h.biz,
+				BizId: id,
+				Uid:   uc.Uid,
+			})
 		return er
 	})
 
@@ -311,11 +316,11 @@ func (h *ArticleHandler) PubDetail(ctx *gin.Context) {
 				AuthorId:   art.Author.Id,
 				AuthorName: art.Author.Name,
 
-				ReadCnt:    interactive.ReadCnt,
-				CollectCnt: interactive.CollectCnt,
-				LikeCnt:    interactive.LikeCnt,
-				Liked:      interactive.Liked,
-				Collected:  interactive.Collected,
+				ReadCnt:    interactive.Interactive.ReadCnt,
+				CollectCnt: interactive.Interactive.CollectCnt,
+				LikeCnt:    interactive.Interactive.LikeCnt,
+				Liked:      interactive.Interactive.Liked,
+				Collected:  interactive.Interactive.Collected,
 
 				Status:     art.Status.ToUint8(),
 				CreateTime: art.CreateTime.Format(time.DateTime),
@@ -332,9 +337,21 @@ func (h *ArticleHandler) Like(
 ) (ginx.Result, error) {
 	var err error
 	if req.Like {
-		err = h.interactiveService.Like(ctx, h.biz, req.Id, uc.Uid)
+		_, err = h.interactiveService.Like(
+			ctx,
+			&interactivev1.LikeRequest{
+				Biz:   h.biz,
+				BizId: req.Id,
+				Uid:   uc.Uid,
+			})
 	} else {
-		err = h.interactiveService.CancelLike(ctx, h.biz, req.Id, uc.Uid)
+		_, err = h.interactiveService.CancelLike(
+			ctx,
+			&interactivev1.CancelLikeRequest{
+				Biz:   h.biz,
+				BizId: req.Id,
+				Uid:   uc.Uid,
+			})
 	}
 
 	if err != nil {
@@ -352,7 +369,14 @@ func (h *ArticleHandler) LikeCollect(
 	req ArticleCollectReq,
 	uc token.UserClaims,
 ) (ginx.Result, error) {
-	err := h.interactiveService.Collect(ctx, h.biz, req.Id, req.Cid, uc.Uid)
+	_, err := h.interactiveService.Collect(
+		ctx,
+		&interactivev1.CollectRequest{
+			Biz:   h.biz,
+			BizId: req.Id,
+			Cid:   req.Cid,
+			Uid:   uc.Uid,
+		})
 	if err != nil {
 		return ginx.Result{
 			Code: 5,

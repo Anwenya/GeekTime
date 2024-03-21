@@ -63,6 +63,8 @@ func InitWebServer() *App {
 		ioc.InitRankingJob,
 		ioc.InitJobs,
 
+		ioc.InitInteractiveClient,
+
 		// 消息
 		article.NewSaramaSyncProducer,
 		events2.NewInteractiveReadEventConsumer,

@@ -82,7 +82,8 @@ func loadConfig(path string) (config *config, err error) {
 			stringToByteSliceHookFunc(),
 		),
 	)
-
+	// 监听变更
+	viper.WatchConfig()
 	err = viper.ReadInConfig()
 	if err != nil {
 		return
