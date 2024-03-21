@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
-	"github.com/Anwenya/GeekTime/webook/internal/domain"
-	"github.com/Anwenya/GeekTime/webook/internal/repository/dao"
+	"github.com/Anwenya/GeekTime/webook/interactive/domain"
+	"github.com/Anwenya/GeekTime/webook/interactive/repository/dao"
 	"time"
 )
 

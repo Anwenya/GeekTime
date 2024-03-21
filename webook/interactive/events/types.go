@@ -11,3 +11,7 @@ type ReadEvent struct {
 	Uid      int64
 	ReadTime int64
 }
+
+type Consumer interface {
+	Start() error
+}

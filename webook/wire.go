@@ -4,10 +4,10 @@ package main
 
 import (
 	events2 "github.com/Anwenya/GeekTime/webook/interactive/events"
-	service2 "github.com/Anwenya/GeekTime/webook/interactive/repository"
+	repo2 "github.com/Anwenya/GeekTime/webook/interactive/repository"
 	cache2 "github.com/Anwenya/GeekTime/webook/interactive/repository/cache"
 	dao2 "github.com/Anwenya/GeekTime/webook/interactive/repository/dao"
-	service3 "github.com/Anwenya/GeekTime/webook/interactive/service"
+	service2 "github.com/Anwenya/GeekTime/webook/interactive/service"
 	"github.com/Anwenya/GeekTime/webook/internal/events"
 	"github.com/Anwenya/GeekTime/webook/internal/events/article"
 	"github.com/Anwenya/GeekTime/webook/internal/ioc"
@@ -31,8 +31,8 @@ type App struct {
 var interactiveServiceSet = wire.NewSet(
 	dao2.NewGORMInteractiveDAO,
 	cache2.NewRedisInteractiveCache,
-	service2.NewCachedInteractiveRepository,
-	service3.NewInteractiveService,
+	repo2.NewCachedInteractiveRepository,
+	service2.NewInteractiveService,
 )
 
 var rankingServiceSet = wire.NewSet(
@@ -56,7 +56,7 @@ func InitWebServer() *App {
 		// dao
 		dao.NewGORMUserDAO,
 		dao.NewGORMArticleDAO,
-		dao.NewGORMHistoryDAO,
+		dao2.NewGORMHistoryDAO,
 
 		interactiveServiceSet,
 		rankingServiceSet,
@@ -66,7 +66,7 @@ func InitWebServer() *App {
 		// 消息
 		article.NewSaramaSyncProducer,
 		events2.NewInteractiveReadEventConsumer,
-		article.NewHistoryRecordConsumer,
+		events2.NewHistoryRecordConsumer,
 		ioc.InitConsumers,
 
 		// 缓存
@@ -78,7 +78,7 @@ func InitWebServer() *App {
 		repository.NewCachedCodeRepository,
 		repository.NewCachedUserRepository,
 		repository.NewCachedArticleRepository,
-		repository.NewCachedReadHistoryRepository,
+		repo2.NewCachedReadHistoryRepository,
 
 		// service
 		ioc.InitSMSService,

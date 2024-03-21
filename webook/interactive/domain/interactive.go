@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 type Interactive struct {
 	Biz        string
 	BizId      int64
@@ -8,4 +10,11 @@ type Interactive struct {
 	CollectCnt int64
 	Liked      bool
 	Collected  bool
+}
+
+type ReadHistory struct {
+	BizId    int64
+	Biz      string
+	Uid      int64
+	ReadTime time.Time
 }
