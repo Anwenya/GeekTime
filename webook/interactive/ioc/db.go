@@ -1,19 +1,60 @@
 package ioc
 
 import (
-	"github.com/Anwenya/GeekTime/webook/interactive/config"
+	"github.com/Anwenya/GeekTime/webook/pkg/gormx/connpool"
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	glogger "gorm.io/gorm/logger"
 )
 
-func InitDB(l logger.LoggerV1) *gorm.DB {
+type SrcDB *gorm.DB
+type DstDB *gorm.DB
+
+func InitSrcDB(l logger.LoggerV1) SrcDB {
+	return InitDB(l, "src")
+}
+
+func InitDstDB(l logger.LoggerV1) DstDB {
+	return InitDB(l, "dst")
+}
+
+func InitDoubleWritePool(
+	src SrcDB,
+	dst DstDB,
+	l logger.LoggerV1,
+) *connpool.DoubleWritePool {
+	return connpool.NewDoubleWritePool(src, dst, l)
+}
+
+func InitBizDB(p *connpool.DoubleWritePool) *gorm.DB {
+	doubleWrite, err := gorm.Open(
+		mysql.New(mysql.Config{
+			Conn: p,
+		}),
+	)
+	if err != nil {
+		panic(any(err))
+	}
+	return doubleWrite
+}
+
+type dbConfig struct {
+	Url                string `yaml:"url"`
+	MigrationUrl       string `yaml:"migrationUrl"`
+	MigrationSourceUrl string `yaml:"migrationSourceUrl"`
+}
+
+func InitDB(l logger.LoggerV1, key string) *gorm.DB {
+	var cfg dbConfig
+	err := viper.UnmarshalKey("db.mysql."+key, &cfg)
+
 	db, err := gorm.Open(
-		mysql.Open(config.Config.DB.MySQL.Url),
+		mysql.Open(cfg.Url),
 		&gorm.Config{
 			Logger: glogger.New(
 				gormLoggerFunc(l.Debug),
@@ -29,14 +70,14 @@ func InitDB(l logger.LoggerV1) *gorm.DB {
 	}
 	l.Info("数据库连接成功")
 
-	mysqlMigration(l)
+	mysqlMigration(l, cfg)
 	return db
 }
 
-func mysqlMigration(l logger.LoggerV1) {
+func mysqlMigration(l logger.LoggerV1, cfg dbConfig) {
 	migration, err := migrate.New(
-		config.Config.DB.MySQL.MigrationSourceUrl,
-		config.Config.DB.MySQL.MigrationUrl,
+		cfg.MigrationSourceUrl,
+		cfg.MigrationUrl,
 	)
 	if err != nil {
 		l.Error("数据库迁移失败")

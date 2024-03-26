@@ -19,7 +19,34 @@ type Validator[T migrator.Entity] struct {
 	direction string
 	batchSize int
 
+	updateTime int64
+	// <= 0 就认为中断
+	// > 0 就认为睡眠
+	sleepInterval time.Duration
+	fromBase      func(ctx context.Context, offset int) ([]T, error)
+
 	l logger.LoggerV1
+}
+
+func NewValidator[T migrator.Entity](
+	base *gorm.DB,
+	target *gorm.DB,
+	producer events.Producer,
+	direction string,
+	l logger.LoggerV1,
+) *Validator[T] {
+
+	validator := &Validator[T]{
+		base:      base,
+		target:    target,
+		producer:  producer,
+		direction: direction,
+		l:         l,
+
+		batchSize: 100,
+	}
+	validator.fromBase = validator.fullFromBase
+	return validator
 }
 
 func (v *Validator[T]) Validate(ctx context.Context) error {
@@ -37,18 +64,23 @@ func (v *Validator[T]) Validate(ctx context.Context) error {
 
 // 以 base 为准
 func (v *Validator[T]) validateBase2Target(ctx context.Context) error {
-	offset := -v.batchSize
+	offset := 0
 	for {
-		offset += v.batchSize
-		var bs []T
 		// 一次查询出一批 然后逐个校验
-		err := v.base.WithContext(ctx).Select("id").
-			Order("id").Offset(offset).Limit(v.batchSize).
-			Find(&bs).Error
+		bs, err := v.fromBase(ctx, offset)
+
+		if err == context.DeadlineExceeded || err == context.Canceled {
+			return nil
+		}
 
 		// 无结果 结束
 		if err == gorm.ErrRecordNotFound || len(bs) == 0 {
-			return nil
+			// 增量校验 要考虑一直运行
+			if v.sleepInterval <= 0 {
+				return nil
+			}
+			time.Sleep(v.sleepInterval)
+			continue
 		}
 
 		// 失败跳过
@@ -57,6 +89,7 @@ func (v *Validator[T]) validateBase2Target(ctx context.Context) error {
 				"base => target 查询 base",
 				logger.Error(err),
 			)
+			offset += len(bs)
 			continue
 		}
 
@@ -69,13 +102,15 @@ func (v *Validator[T]) validateBase2Target(ctx context.Context) error {
 				return t.ID()
 			},
 		)
-		err = v.target.WithContext(ctx).Select("id").
-			Where("id IN ?", ids).Find(&dstTs).Error
+		err = v.target.WithContext(ctx).
+			Where("id IN ?", ids).
+			Find(&dstTs).Error
 
 		// 目标表没有数据
 		if err == gorm.ErrRecordNotFound || len(dstTs) == 0 {
 			// 生成对应的修复任务
 			v.notifyTargetMissing(bs)
+			offset += len(bs)
 			continue
 		}
 
@@ -88,6 +123,7 @@ func (v *Validator[T]) validateBase2Target(ctx context.Context) error {
 
 			// 保守起见 我都认为 target 里面没有数据
 			// v.notifyTargetMissing(bs)
+			offset += len(bs)
 			continue
 		}
 
@@ -103,25 +139,37 @@ func (v *Validator[T]) validateBase2Target(ctx context.Context) error {
 
 		// 结束
 		if len(bs) < v.batchSize {
-			return nil
+			if v.sleepInterval <= 0 {
+				return nil
+			}
+			time.Sleep(v.sleepInterval)
 		}
+		offset += len(bs)
 	}
 }
 
 // 以 target 为准
 func (v *Validator[T]) validateTarget2Base(ctx context.Context) error {
-	offset := -v.batchSize
+	offset := 0
 	for {
-		offset += v.batchSize
 		var ts []T
 		// 一次查询出一批 然后逐个校验
 		err := v.target.WithContext(ctx).Select("id").
 			Order("id").Offset(offset).Limit(v.batchSize).
 			Find(&ts).Error
 
-		// 无结果 结束
-		if err == gorm.ErrRecordNotFound || len(ts) == 0 {
+		if err == context.DeadlineExceeded || err == context.Canceled {
 			return nil
+		}
+
+		// 无结果 结束或者继续
+		if err == gorm.ErrRecordNotFound || len(ts) == 0 {
+			if v.sleepInterval <= 0 {
+				return nil
+			}
+
+			time.Sleep(v.sleepInterval)
+			continue
 		}
 
 		// 失败跳过
@@ -130,6 +178,7 @@ func (v *Validator[T]) validateTarget2Base(ctx context.Context) error {
 				"target => base 查询 target失败",
 				logger.Error(err),
 			)
+			offset += len(ts)
 			continue
 		}
 
@@ -149,6 +198,7 @@ func (v *Validator[T]) validateTarget2Base(ctx context.Context) error {
 		if err == gorm.ErrRecordNotFound || len(srcTs) == 0 {
 			// 生成对应的修复任务
 			v.notifyBaseMissing(ts)
+			offset += len(ts)
 			continue
 		}
 
@@ -161,6 +211,7 @@ func (v *Validator[T]) validateTarget2Base(ctx context.Context) error {
 
 			// 保守起见 我都认为 base 里面没有数据
 			// v.notifyBaseMissing(ts)
+			offset += len(ts)
 			continue
 		}
 
@@ -176,8 +227,12 @@ func (v *Validator[T]) validateTarget2Base(ctx context.Context) error {
 
 		// 结束
 		if len(ts) < v.batchSize {
-			return nil
+			if v.sleepInterval <= 0 {
+				return nil
+			}
+			time.Sleep(v.sleepInterval)
 		}
+		offset += len(ts)
 	}
 }
 
@@ -206,10 +261,55 @@ func (v *Validator[T]) notify(id int64, typ string) {
 			Direction: v.direction,
 		},
 	)
-	v.l.Error(
-		"发送不一致消息失败",
-		logger.Error(err),
-		logger.String("type", typ),
-		logger.Int64("id", id),
-	)
+	if err != nil {
+		v.l.Error(
+			"发送不一致消息失败",
+			logger.Error(err),
+			logger.String("type", typ),
+			logger.Int64("id", id),
+		)
+	}
+}
+
+func (v *Validator[T]) Full() *Validator[T] {
+	v.fromBase = v.fullFromBase
+	return v
+}
+
+func (v *Validator[T]) Incr() *Validator[T] {
+	v.fromBase = v.incrFromBase
+	return v
+}
+
+func (v *Validator[T]) UpdateTime(t int64) *Validator[T] {
+	v.updateTime = t
+	return v
+}
+
+func (v *Validator[T]) SleepInterval(interval time.Duration) *Validator[T] {
+	v.sleepInterval = interval
+	return v
+}
+
+// 全量
+func (v *Validator[T]) fullFromBase(ctx context.Context, offset int) ([]T, error) {
+	dbCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	var src []T
+	err := v.base.WithContext(dbCtx).Order("id").
+		Offset(offset).Limit(v.batchSize).Find(&src).Error
+	return src, err
+}
+
+// 增量
+func (v *Validator[T]) incrFromBase(ctx context.Context, offset int) ([]T, error) {
+	dbCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	var src []T
+	err := v.base.WithContext(dbCtx).
+		Where("update_time > ?", v.updateTime).
+		Order("update_time").
+		Offset(offset).Limit(v.batchSize).
+		Find(&src).Error
+	return src, err
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/Anwenya/GeekTime/webook/interactive/repository/cache"
 	"github.com/Anwenya/GeekTime/webook/interactive/repository/dao"
 	"github.com/Anwenya/GeekTime/webook/interactive/service"
+	"github.com/Anwenya/GeekTime/webook/pkg/ginx"
 	"github.com/Anwenya/GeekTime/webook/pkg/grpcx"
 	"github.com/google/wire"
 )
@@ -28,7 +29,10 @@ import (
 
 func InitApp() *App {
 	loggerV1 := ioc.InitLogger()
-	db := ioc.InitDB(loggerV1)
+	srcDB := ioc.InitSrcDB(loggerV1)
+	dstDB := ioc.InitDstDB(loggerV1)
+	doubleWritePool := ioc.InitDoubleWritePool(srcDB, dstDB, loggerV1)
+	db := ioc.InitBizDB(doubleWritePool)
 	interactiveDAO := dao.NewGORMInteractiveDAO(db)
 	cmdable := ioc.InitRedis()
 	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
@@ -41,10 +45,15 @@ func InitApp() *App {
 	historyDao := dao.NewGORMHistoryDAO(db)
 	readHistoryRepository := repository.NewCachedReadHistoryRepository(historyDao)
 	historyRecordConsumer := events.NewHistoryRecordConsumer(readHistoryRepository, client, loggerV1)
-	v := ioc.InitConsumers(interactiveReadEventConsumer, historyRecordConsumer)
+	consumer := ioc.InitFixerConsumer(client, loggerV1, srcDB, dstDB)
+	v := ioc.InitConsumers(interactiveReadEventConsumer, historyRecordConsumer, consumer)
+	syncProducer := ioc.InitSaramaSyncProducer(client)
+	producer := ioc.InitInteractiveProducer(syncProducer)
+	ginxServer := ioc.InitGinxServer(srcDB, dstDB, doubleWritePool, producer, loggerV1)
 	app := &App{
-		server:    server,
-		consumers: v,
+		server:      server,
+		consumers:   v,
+		adminServer: ginxServer,
 	}
 	return app
 }
@@ -52,11 +61,12 @@ func InitApp() *App {
 // wire.go:
 
 type App struct {
-	server    *grpcx.Server
-	consumers []events.Consumer
+	server      *grpcx.Server
+	consumers   []events.Consumer
+	adminServer *ginx.Server
 }
 
-var thirdPartySet = wire.NewSet(ioc.InitLogger, ioc.InitDB, ioc.InitSaramaClient, ioc.InitRedis)
+var thirdPartySet = wire.NewSet(ioc.InitLogger, ioc.InitDstDB, ioc.InitSrcDB, ioc.InitDoubleWritePool, ioc.InitBizDB, ioc.InitSaramaClient, ioc.InitSaramaSyncProducer, ioc.InitRedis)
 
 var interactiveServiceSet = wire.NewSet(cache.NewRedisInteractiveCache, dao.NewGORMInteractiveDAO, repository.NewCachedInteractiveRepository, service.NewInteractiveService)
 

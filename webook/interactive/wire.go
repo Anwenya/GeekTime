@@ -10,19 +10,25 @@ import (
 	"github.com/Anwenya/GeekTime/webook/interactive/repository/cache"
 	"github.com/Anwenya/GeekTime/webook/interactive/repository/dao"
 	"github.com/Anwenya/GeekTime/webook/interactive/service"
+	"github.com/Anwenya/GeekTime/webook/pkg/ginx"
 	"github.com/Anwenya/GeekTime/webook/pkg/grpcx"
 	"github.com/google/wire"
 )
 
 type App struct {
-	server    *grpcx.Server
-	consumers []events.Consumer
+	server      *grpcx.Server
+	consumers   []events.Consumer
+	adminServer *ginx.Server
 }
 
 var thirdPartySet = wire.NewSet(
 	ioc.InitLogger,
-	ioc.InitDB,
+	ioc.InitDstDB,
+	ioc.InitSrcDB,
+	ioc.InitDoubleWritePool,
+	ioc.InitBizDB,
 	ioc.InitSaramaClient,
+	ioc.InitSaramaSyncProducer,
 	ioc.InitRedis,
 )
 
@@ -50,9 +56,11 @@ func InitApp() *App {
 
 		events.NewInteractiveReadEventConsumer,
 		events.NewHistoryRecordConsumer,
+		ioc.InitInteractiveProducer,
+		ioc.InitFixerConsumer,
 		ioc.InitConsumers,
-
 		ioc.NewGrpcxServer,
+		ioc.InitGinxServer,
 
 		wire.Struct(new(App), "*"),
 	)

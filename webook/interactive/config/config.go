@@ -12,9 +12,16 @@ import (
 type config struct {
 	DB struct {
 		MySQL struct {
-			Url                string `yaml:"url"`
-			MigrationUrl       string `yaml:"migrationUrl"`
-			MigrationSourceUrl string `yaml:"migrationSourceUrl"`
+			Src struct {
+				Url                string `yaml:"url"`
+				MigrationUrl       string `yaml:"migrationUrl"`
+				MigrationSourceUrl string `yaml:"migrationSourceUrl"`
+			} `json:"src"`
+			Dst struct {
+				Url                string `yaml:"url"`
+				MigrationUrl       string `yaml:"migrationUrl"`
+				MigrationSourceUrl string `yaml:"migrationSourceUrl"`
+			} `json:"dst"`
 		} `yaml:"mysql"`
 	} `yaml:"db"`
 
