@@ -1,0 +1,41 @@
+version: v1
+managed:
+  enabled: true
+plugins:
+  - plugin: buf.build/protocolbuffers/go
+    out: .
+    opt: paths=source_relative
+  - plugin: buf.build/grpc/go
+    # out 为 . 代表生成目录与源文件在同一个目录
+    out: .
+    opt:
+      - paths=source_relative
+
+# 使用buf生成
+# go install github.com/bufbuild/buf/cmd/buf@v1.30.0
+# buf generate
+
+
+# ----------------------------------------------------------
+# 使用原生命令生成
+# 例 如下目录结构 grpc文件夹下有个pb文件夹 其中有个proto文件
+# proto文件中有一个配置 # option go_package = "/pb";
+
+# -grpc
+#   -pb
+#     --user.proto
+
+# 在grpc目录下执行该命令
+# protoc --proto_path=pb --go_out=pb --go_opt=paths=source_relative --go-grpc_out=pb --go-grpc_opt=paths=source_relative pb/*.proto
+# 参数解释
+# --proto_path:导入路径, .proto配置文件内的 import 操作从该参数指定的路径下导入
+# --go_out:生成的golang代码的位置
+# --go-grpc_out:生成的golang grpc代码的位置
+# 最后跟 .proto文件所在位置
+
+# 生成结果如下,go文件的包名是pb
+# -grpc
+#   -pb
+#     --user.proto
+#     --user.pb.go
+#     --user_grpc.pb.go
