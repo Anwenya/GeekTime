@@ -37,9 +37,9 @@ func main() {
 	}
 	zap.L().Info(
 		"启动成功",
-		zap.String(
-			"address",
-			config.Config.Grpc.Address,
+		zap.Int(
+			"port",
+			config.Config.Grpc.Port,
 		),
 	)
 

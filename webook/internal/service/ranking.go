@@ -33,10 +33,12 @@ type BatchRankingService struct {
 func NewBatchRankingService(
 	intrSvc interactivev1.InteractiveServiceClient,
 	artSvc ArticleService,
+	repo repository.RankingRepository,
 ) RankingService {
 	return &BatchRankingService{
 		intrSvc:   intrSvc,
 		artSvc:    artSvc,
+		repo:      repo,
 		batchSize: 100,
 		n:         100,
 		// 积分计算规则

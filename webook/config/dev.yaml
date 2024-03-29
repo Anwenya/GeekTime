@@ -6,17 +6,21 @@ db:
     migrationUrl: "mysql://root:root@tcp(192.168.133.128:13306)/webook"
     migrationSourceUrl: "file://db/migration"
   mongo:
-#    url: "mongodb://root:root@192.168.2.128:27017/"
+    #    url: "mongodb://root:root@192.168.2.128:27017/"
     url: "mongodb://root:root@192.168.133.128:27017/"
 
 redis:
   #  address: "webook-redis-service:6380"
-    address: "192.168.133.128:6379"
+  address: "192.168.133.128:6379"
 #  address: "192.168.2.128:6379"
 
 kafka:
-    address:
-      - "192.168.2.128:9094"
+  address:
+    - "192.168.2.128:9094"
+
+etcd:
+  address:
+    - "localhost:12379"
 
 app:
   httpServerAddress: "0.0.0.0:8080"
@@ -35,5 +39,5 @@ secretKey:
 grpc:
   client:
     interactive:
-      address: ":8090"
+      address: "etcd:///service/interactive"
       threshold: 100

@@ -3,11 +3,6 @@
 package main
 
 import (
-	events2 "github.com/Anwenya/GeekTime/webook/interactive/events"
-	repo2 "github.com/Anwenya/GeekTime/webook/interactive/repository"
-	cache2 "github.com/Anwenya/GeekTime/webook/interactive/repository/cache"
-	dao2 "github.com/Anwenya/GeekTime/webook/interactive/repository/dao"
-	service2 "github.com/Anwenya/GeekTime/webook/interactive/service"
 	"github.com/Anwenya/GeekTime/webook/internal/events"
 	"github.com/Anwenya/GeekTime/webook/internal/events/article"
 	"github.com/Anwenya/GeekTime/webook/internal/ioc"
@@ -28,13 +23,6 @@ type App struct {
 	cron      *cron.Cron
 }
 
-var interactiveServiceSet = wire.NewSet(
-	dao2.NewGORMInteractiveDAO,
-	cache2.NewRedisInteractiveCache,
-	repo2.NewCachedInteractiveRepository,
-	service2.NewInteractiveService,
-)
-
 var rankingServiceSet = wire.NewSet(
 	cache.NewRedisRankingCache,
 	repository.NewCachedRankingRepository,
@@ -49,6 +37,7 @@ func InitWebServer() *App {
 		// 第三方
 		ioc.InitDB,
 		ioc.InitRedis,
+		ioc.InitEtcd,
 		ioc.InitSaramaClient,
 		ioc.InitSyncProducer,
 		ioc.InitRlockClient,
@@ -56,19 +45,15 @@ func InitWebServer() *App {
 		// dao
 		dao.NewGORMUserDAO,
 		dao.NewGORMArticleDAO,
-		dao2.NewGORMHistoryDAO,
 
-		interactiveServiceSet,
 		rankingServiceSet,
 		ioc.InitRankingJob,
 		ioc.InitJobs,
 
-		ioc.InitInteractiveClient,
+		ioc.InitInteractiveClientV1,
 
 		// 消息
 		article.NewSaramaSyncProducer,
-		events2.NewInteractiveReadEventConsumer,
-		events2.NewHistoryRecordConsumer,
 		ioc.InitConsumers,
 
 		// 缓存
@@ -80,7 +65,6 @@ func InitWebServer() *App {
 		repository.NewCachedCodeRepository,
 		repository.NewCachedUserRepository,
 		repository.NewCachedArticleRepository,
-		repo2.NewCachedReadHistoryRepository,
 
 		// service
 		ioc.InitSMSService,

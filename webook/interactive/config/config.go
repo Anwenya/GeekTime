@@ -34,7 +34,9 @@ type config struct {
 	} `yaml:"kafka"`
 
 	Grpc struct {
-		Address string `yaml:"address"`
+		EtcdAddr string `yaml:"etcdAddr"`
+		Port     int    `yaml:"port"`
+		Name     string `yaml:"name"`
 	} `yaml:"grpc"`
 }
 

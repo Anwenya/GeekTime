@@ -31,6 +31,10 @@ type config struct {
 		Address []string `yaml:"address"`
 	} `yaml:"kafka"`
 
+	Etcd struct {
+		Address []string `yaml:"address"`
+	} `yaml:"etcd"`
+
 	App struct {
 		HttpServerAddress string `yaml:"httpServerAddress"`
 	} `yaml:"app"`
