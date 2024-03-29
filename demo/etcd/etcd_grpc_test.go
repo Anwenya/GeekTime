@@ -15,19 +15,19 @@ import (
 	"time"
 )
 
-type EtcdTestSuite struct {
+type GrpcTestSuite struct {
 	suite.Suite
 	cli *etcdv3.Client
 }
 
-func (e *EtcdTestSuite) SetupSuite() {
+func (e *GrpcTestSuite) SetupSuite() {
 	// 初始化etcd客户端
 	cli, err := etcdv3.NewFromURL("192.168.2.130:12379")
 	require.NoError(e.T(), err)
 	e.cli = cli
 }
 
-func (e *EtcdTestSuite) TestClient() {
+func (e *GrpcTestSuite) TestClient() {
 	t := e.T()
 	builder, err := resolver.NewBuilder(e.cli)
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ func (e *EtcdTestSuite) TestClient() {
 	t.Log(resp)
 }
 
-func (e *EtcdTestSuite) TestServer() {
+func (e *GrpcTestSuite) TestServer() {
 	t := e.T()
 	em, err := endpoints.NewManager(e.cli, "server/user")
 	require.NoError(t, err)
@@ -133,5 +133,5 @@ func (e *EtcdTestSuite) TestServer() {
 }
 
 func TestEtcd(t *testing.T) {
-	suite.Run(t, new(EtcdTestSuite))
+	suite.Run(t, new(GrpcTestSuite))
 }
