@@ -23,10 +23,10 @@ const (
 
 type InteractiveCache interface {
 	IncrReadCntIfPresent(ctx context.Context, biz string, bizId int64) error
-	IncrLikeCntIfPresent(ctx context.Context, biz string, id int64) error
-	DecrLikeCntIfPresent(ctx context.Context, biz string, id int64) error
-	IncrCollectCntIfPresent(ctx context.Context, biz string, id int64) error
-	Get(ctx context.Context, biz string, id int64) (domain.Interactive, error)
+	IncrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error
+	DecrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error
+	IncrCollectCntIfPresent(ctx context.Context, biz string, bizId int64) error
+	Get(ctx context.Context, biz string, bizId int64) (domain.Interactive, error)
 	Set(ctx context.Context, biz string, bizId int64, res domain.Interactive) error
 }
 
@@ -40,23 +40,23 @@ func NewRedisInteractiveCache(client redis.Cmdable) InteractiveCache {
 	}
 }
 
-func (i RedisInteractiveCache) IncrReadCntIfPresent(ctx context.Context, biz string, bizId int64) error {
+func (i *RedisInteractiveCache) IncrReadCntIfPresent(ctx context.Context, biz string, bizId int64) error {
 	key := i.key(biz, bizId)
 	return i.client.Eval(ctx, luaIncrCnt, []string{key}, fieldReadCnt, 1).Err()
 }
 
-func (i RedisInteractiveCache) IncrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error {
+func (i *RedisInteractiveCache) IncrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error {
 	key := i.key(biz, bizId)
 	return i.client.Eval(ctx, luaIncrCnt, []string{key}, fieldLikeCnt, 1).Err()
 }
 
-func (i RedisInteractiveCache) DecrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error {
+func (i *RedisInteractiveCache) DecrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error {
 	key := i.key(biz, bizId)
 	return i.client.Eval(ctx, luaIncrCnt, []string{key}, fieldLikeCnt, -1).Err()
 }
 
-func (i RedisInteractiveCache) IncrCollectCntIfPresent(ctx context.Context, biz string, id int64) error {
-	key := i.key(biz, id)
+func (i *RedisInteractiveCache) IncrCollectCntIfPresent(ctx context.Context, biz string, bizId int64) error {
+	key := i.key(biz, bizId)
 	return i.client.Eval(ctx, luaIncrCnt, []string{key}, fieldCollectCnt, 1).Err()
 }
 
@@ -64,8 +64,8 @@ func (i *RedisInteractiveCache) key(biz string, bizId int64) string {
 	return fmt.Sprintf("interactive:%s:%d", biz, bizId)
 }
 
-func (i RedisInteractiveCache) Get(ctx context.Context, biz string, id int64) (domain.Interactive, error) {
-	key := i.key(biz, id)
+func (i *RedisInteractiveCache) Get(ctx context.Context, biz string, bizId int64) (domain.Interactive, error) {
+	key := i.key(biz, bizId)
 	res, err := i.client.HGetAll(ctx, key).Result()
 	if err != nil {
 		return domain.Interactive{}, err
@@ -75,16 +75,16 @@ func (i RedisInteractiveCache) Get(ctx context.Context, biz string, id int64) (d
 	}
 
 	var interactive domain.Interactive
-	interactive.BizId = id
+	interactive.BizId = bizId
 	interactive.CollectCnt, _ = strconv.ParseInt(res[fieldCollectCnt], 10, 64)
 	interactive.LikeCnt, _ = strconv.ParseInt(res[fieldLikeCnt], 10, 64)
 	interactive.ReadCnt, _ = strconv.ParseInt(res[fieldReadCnt], 10, 64)
 	return interactive, nil
 }
 
-func (i RedisInteractiveCache) Set(ctx context.Context, biz string, bizId int64, res domain.Interactive) error {
+func (i *RedisInteractiveCache) Set(ctx context.Context, biz string, bizId int64, res domain.Interactive) error {
 	key := i.key(biz, bizId)
-	err := i.client.HSet(
+	err := i.client.HMSet(
 		ctx,
 		key,
 		fieldCollectCnt, res.CollectCnt,
