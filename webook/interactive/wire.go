@@ -33,7 +33,7 @@ var thirdPartySet = wire.NewSet(
 )
 
 var interactiveServiceSet = wire.NewSet(
-	cache.NewRedisInteractiveCache,
+	cache.NewInteractiveRedisCache,
 	dao.NewGORMInteractiveDAO,
 	repository.NewCachedInteractiveRepository,
 	service.NewInteractiveService,

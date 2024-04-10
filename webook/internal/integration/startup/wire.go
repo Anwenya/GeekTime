@@ -38,7 +38,7 @@ var userRepoSet = wire.NewSet(
 
 var interactiveServiceSet = wire.NewSet(
 	dao2.NewGORMInteractiveDAO,
-	cache2.NewRedisInteractiveCache,
+	cache2.NewInteractiveRedisCache,
 	repo2.NewCachedInteractiveRepository,
 	service2.NewInteractiveService,
 )

@@ -35,7 +35,7 @@ func InitApp() *App {
 	db := ioc.InitBizDB(doubleWritePool)
 	interactiveDAO := dao.NewGORMInteractiveDAO(db)
 	cmdable := ioc.InitRedis()
-	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
+	interactiveCache := cache.NewInteractiveRedisCache(cmdable)
 	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveDAO, interactiveCache, loggerV1)
 	interactiveService := service.NewInteractiveService(interactiveRepository)
 	interactiveServiceServer := grpc.NewInteractiveServiceServer(interactiveService)
@@ -68,6 +68,6 @@ type App struct {
 
 var thirdPartySet = wire.NewSet(ioc.InitLogger, ioc.InitDstDB, ioc.InitSrcDB, ioc.InitDoubleWritePool, ioc.InitBizDB, ioc.InitSaramaClient, ioc.InitSaramaSyncProducer, ioc.InitRedis)
 
-var interactiveServiceSet = wire.NewSet(cache.NewRedisInteractiveCache, dao.NewGORMInteractiveDAO, repository.NewCachedInteractiveRepository, service.NewInteractiveService)
+var interactiveServiceSet = wire.NewSet(cache.NewInteractiveRedisCache, dao.NewGORMInteractiveDAO, repository.NewCachedInteractiveRepository, service.NewInteractiveService)
 
 var historySet = wire.NewSet(dao.NewGORMHistoryDAO, repository.NewCachedReadHistoryRepository)

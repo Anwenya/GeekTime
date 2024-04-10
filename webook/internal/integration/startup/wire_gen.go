@@ -52,7 +52,7 @@ func InitWebServer() *gin.Engine {
 	producer := article.NewSaramaSyncProducer(syncProducer)
 	articleService := service.NewArticleService(articleRepository, producer)
 	interactiveDAO := dao2.NewGORMInteractiveDAO(db)
-	interactiveCache := cache2.NewRedisInteractiveCache(cmdable)
+	interactiveCache := cache2.NewInteractiveRedisCache(cmdable)
 	interactiveRepository := repository2.NewCachedInteractiveRepository(interactiveDAO, interactiveCache, loggerV1)
 	interactiveService := service2.NewInteractiveService(interactiveRepository)
 	articleHandler := web.NewArticleHandler(loggerV1, articleService, interactiveService)
@@ -74,7 +74,7 @@ func InitArticleHandler(dao3 dao.ArticleDAO) *web.ArticleHandler {
 	producer := article.NewSaramaSyncProducer(syncProducer)
 	articleService := service.NewArticleService(articleRepository, producer)
 	interactiveDAO := dao2.NewGORMInteractiveDAO(db)
-	interactiveCache := cache2.NewRedisInteractiveCache(cmdable)
+	interactiveCache := cache2.NewInteractiveRedisCache(cmdable)
 	interactiveRepository := repository2.NewCachedInteractiveRepository(interactiveDAO, interactiveCache, loggerV1)
 	interactiveService := service2.NewInteractiveService(interactiveRepository)
 	articleHandler := web.NewArticleHandler(loggerV1, articleService, interactiveService)
@@ -104,4 +104,4 @@ var userRepoSet = wire.NewSet(
 	thirdPartySet, dao.NewGORMUserDAO, cache.NewRedisUserCache, repository.NewCachedUserRepository,
 )
 
-var interactiveServiceSet = wire.NewSet(dao2.NewGORMInteractiveDAO, cache2.NewRedisInteractiveCache, repository2.NewCachedInteractiveRepository, service2.NewInteractiveService)
+var interactiveServiceSet = wire.NewSet(dao2.NewGORMInteractiveDAO, cache2.NewInteractiveRedisCache, repository2.NewCachedInteractiveRepository, service2.NewInteractiveService)

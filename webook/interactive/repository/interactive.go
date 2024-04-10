@@ -93,7 +93,24 @@ func (c *CachedInteractiveRepository) IncrLike(ctx context.Context, biz string, 
 	}
 	// 更新缓存失败会造成数据与缓存不一致
 	// 从实际使用上来说无关紧要
-	return c.cache.IncrLikeCntIfPresent(ctx, biz, id)
+
+	// 更新文章互动量缓存中的点赞数
+	err = c.cache.IncrLikeCntIfPresent(ctx, biz, id)
+	if err != nil {
+		return err
+	}
+	// 增加文章排行榜的文章点赞数
+	err = c.cache.IncrRankingIfPresent(ctx, biz, id)
+	if err == cache.ErrRankingUpdate {
+		// 从互动量缓存拿到文章点赞数
+		val, err := c.dao.Get(ctx, biz, id)
+		if err != nil {
+			return err
+		}
+		// 设置点赞数到文章排行缓存
+		return c.cache.SetRankingScore(ctx, biz, id, val.LikeCnt)
+	}
+	return err
 }
 
 func (c *CachedInteractiveRepository) DecrLike(ctx context.Context, biz string, id int64, uid int64) error {
@@ -171,6 +188,10 @@ func (c *CachedInteractiveRepository) Collected(ctx context.Context, biz string,
 	default:
 		return false, err
 	}
+}
+
+func (c *CachedInteractiveRepository) LikeTop(ctx context.Context, biz string) ([]domain.Interactive, error) {
+	return c.cache.LikeTop(ctx, biz, 100)
 }
 
 func (c *CachedInteractiveRepository) toDomain(ie dao.Interactive) domain.Interactive {

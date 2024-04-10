@@ -22,6 +22,7 @@ const (
 )
 
 type InteractiveCache interface {
+	InteractiveRanking
 	IncrReadCntIfPresent(ctx context.Context, biz string, bizId int64) error
 	IncrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error
 	DecrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error
@@ -30,41 +31,41 @@ type InteractiveCache interface {
 	Set(ctx context.Context, biz string, bizId int64, res domain.Interactive) error
 }
 
-type RedisInteractiveCache struct {
+type InteractiveRedisCache struct {
 	client redis.Cmdable
 }
 
-func NewRedisInteractiveCache(client redis.Cmdable) InteractiveCache {
-	return &RedisInteractiveCache{
+func NewInteractiveRedisCache(client redis.Cmdable) InteractiveCache {
+	return &InteractiveRedisCache{
 		client: client,
 	}
 }
 
-func (i *RedisInteractiveCache) IncrReadCntIfPresent(ctx context.Context, biz string, bizId int64) error {
+func (i *InteractiveRedisCache) IncrReadCntIfPresent(ctx context.Context, biz string, bizId int64) error {
 	key := i.key(biz, bizId)
 	return i.client.Eval(ctx, luaIncrCnt, []string{key}, fieldReadCnt, 1).Err()
 }
 
-func (i *RedisInteractiveCache) IncrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error {
+func (i *InteractiveRedisCache) IncrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error {
 	key := i.key(biz, bizId)
 	return i.client.Eval(ctx, luaIncrCnt, []string{key}, fieldLikeCnt, 1).Err()
 }
 
-func (i *RedisInteractiveCache) DecrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error {
+func (i *InteractiveRedisCache) DecrLikeCntIfPresent(ctx context.Context, biz string, bizId int64) error {
 	key := i.key(biz, bizId)
 	return i.client.Eval(ctx, luaIncrCnt, []string{key}, fieldLikeCnt, -1).Err()
 }
 
-func (i *RedisInteractiveCache) IncrCollectCntIfPresent(ctx context.Context, biz string, bizId int64) error {
+func (i *InteractiveRedisCache) IncrCollectCntIfPresent(ctx context.Context, biz string, bizId int64) error {
 	key := i.key(biz, bizId)
 	return i.client.Eval(ctx, luaIncrCnt, []string{key}, fieldCollectCnt, 1).Err()
 }
 
-func (i *RedisInteractiveCache) key(biz string, bizId int64) string {
+func (i *InteractiveRedisCache) key(biz string, bizId int64) string {
 	return fmt.Sprintf("interactive:%s:%d", biz, bizId)
 }
 
-func (i *RedisInteractiveCache) Get(ctx context.Context, biz string, bizId int64) (domain.Interactive, error) {
+func (i *InteractiveRedisCache) Get(ctx context.Context, biz string, bizId int64) (domain.Interactive, error) {
 	key := i.key(biz, bizId)
 	res, err := i.client.HGetAll(ctx, key).Result()
 	if err != nil {
@@ -82,7 +83,7 @@ func (i *RedisInteractiveCache) Get(ctx context.Context, biz string, bizId int64
 	return interactive, nil
 }
 
-func (i *RedisInteractiveCache) Set(ctx context.Context, biz string, bizId int64, res domain.Interactive) error {
+func (i *InteractiveRedisCache) Set(ctx context.Context, biz string, bizId int64, res domain.Interactive) error {
 	key := i.key(biz, bizId)
 	err := i.client.HMSet(
 		ctx,
