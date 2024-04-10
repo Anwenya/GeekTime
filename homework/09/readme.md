@@ -1,0 +1,10 @@
+维护和计算榜单的逻辑在 webook/interactive/repository/cache/ranking.go 文件中
+
+主要思路是在触发点赞的过程中一直在redis中维护着文章的点赞数,
+在需要查询榜单时从redis中拿出点赞数再计算指定的排名数据.
+
+IncrRankingIfPresent:对已经在缓存的数据增加计数
+SetRankingScore:首次设置数据到缓存
+LikeTop:查询缓存中的数据
+
+缓存默认使用分key存储
