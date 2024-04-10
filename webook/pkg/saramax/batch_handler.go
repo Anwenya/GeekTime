@@ -5,19 +5,32 @@ import (
 	"encoding/json"
 	"github.com/Anwenya/GeekTime/webook/pkg/logger"
 	"github.com/IBM/sarama"
+	"github.com/prometheus/client_golang/prometheus"
+	"strconv"
 	"time"
 )
 
 type BatchHandler[T any] struct {
-	fn func([]*sarama.ConsumerMessage, []T) error
-	l  logger.LoggerV1
+	fn     func([]*sarama.ConsumerMessage, []T) error
+	l      logger.LoggerV1
+	vector *prometheus.SummaryVec
 }
 
 func NewBatchHandler[T any](
+	consumer string,
 	l logger.LoggerV1,
 	fn func([]*sarama.ConsumerMessage, []T) error,
 ) *BatchHandler[T] {
-	return &BatchHandler[T]{fn: fn, l: l}
+
+	vector := prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Namespace: "saramax",
+			Subsystem: "consumer_batch_handler",
+			Name:      consumer,
+		},
+		[]string{"topic", "error"})
+
+	return &BatchHandler[T]{fn: fn, l: l, vector: vector}
 }
 
 func (b *BatchHandler[T]) Setup(session sarama.ConsumerGroupSession) error {
@@ -28,7 +41,10 @@ func (b *BatchHandler[T]) Cleanup(session sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-func (b *BatchHandler[T]) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (b *BatchHandler[T]) ConsumeClaim(
+	session sarama.ConsumerGroupSession,
+	claim sarama.ConsumerGroupClaim,
+) error {
 	msgChan := claim.Messages()
 	const batchSize = 10
 	for {
@@ -65,15 +81,27 @@ func (b *BatchHandler[T]) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 		}
 		cancel()
 		// 消费
-		err := b.fn(batch, ts)
-		if err != nil {
-			b.l.Error(
-				"处理消息失败",
-				logger.Error(err),
-			)
-		}
+		b.consumeClaim(batch, ts)
 		for _, msg := range batch {
 			session.MarkMessage(msg, "")
 		}
 	}
+}
+
+func (b *BatchHandler[T]) consumeClaim(msgs []*sarama.ConsumerMessage, ts []T) {
+	start := time.Now()
+	var err error
+	defer func() {
+		errInfo := strconv.FormatBool(err != nil)
+		// 主题 和 异常情况
+		b.vector.WithLabelValues(msgs[0].Topic, errInfo).Observe(float64(time.Since(start).Milliseconds()))
+	}()
+	err = b.fn(msgs, ts)
+	if err != nil {
+		b.l.Error(
+			"处理消息失败",
+			logger.Error(err),
+		)
+	}
+
 }
