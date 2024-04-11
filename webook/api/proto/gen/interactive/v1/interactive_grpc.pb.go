@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             (unknown)
-// source: interactive/v1/interactive.pb
+// source: interactive/v1/interactive.proto
 
 package interactivev1
 
@@ -290,5 +290,5 @@ var InteractiveService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "interactive/v1/interactive.pb",
+	Metadata: "interactive/v1/interactive.proto",
 }

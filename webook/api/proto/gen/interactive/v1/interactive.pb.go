@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.33.0
 // 	protoc        (unknown)
-// source: interactive/v1/interactive.pb
+// source: interactive/v1/interactive.proto
 
 package interactivev1
 
