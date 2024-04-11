@@ -17,14 +17,20 @@ type Server struct {
 	Port int
 	Name string
 
-	EtcdAddr string
-	client   *etcdv3.Client
-	kaCancel func()
+	TTL    int64
+	Client *etcdv3.Client
+	key    string
+	em     endpoints.Manager
+	cancel func()
 
 	L logger.LoggerV1
 }
 
 func (s *Server) Serve() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+
+	// 服务监听的地址
 	addr := fmt.Sprintf(":%d", s.Port)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -32,40 +38,31 @@ func (s *Server) Serve() error {
 	}
 
 	// 注册服务
-	err = s.register()
+	err = s.register(ctx)
 	if err != nil {
 		return err
 	}
 	return s.Server.Serve(listener)
 }
 
-func (s *Server) register() error {
+func (s *Server) register(ctx context.Context) error {
 	// etcd客户端
-	client, err := etcdv3.NewFromURL(s.EtcdAddr)
-	if err != nil {
-		return err
-	}
-
-	s.client = client
+	client := s.Client
 	em, err := endpoints.NewManager(client, fmt.Sprintf("service/%s", s.Name))
 	// 服务端注册的地址
 	addr := fmt.Sprintf("%s:%d", netx.GetOutboundIP(), s.Port)
 	// 在etcd中的key
-	key := fmt.Sprintf("service/%s/%s", s.Name, addr)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
+	s.key = fmt.Sprintf("service/%s/%s", s.Name, addr)
 
 	// 租期
-	var ttl int64 = 5
-	leaseResp, err := client.Grant(ctx, ttl)
+	leaseResp, err := client.Grant(ctx, s.TTL)
 	if err != nil {
 		return err
 	}
 
 	// 向etcd注册key 并绑定租期
 	err = em.AddEndpoint(
-		ctx, key,
+		ctx, s.key,
 		endpoints.Endpoint{
 			Addr: addr,
 		},
@@ -77,12 +74,10 @@ func (s *Server) register() error {
 	}
 
 	// 续约
-	kaCtx, kaCancel := context.WithCancel(context.Background())
-	s.kaCancel = kaCancel
-	ch, err := client.KeepAlive(kaCtx, leaseResp.ID)
+	ch, err := client.KeepAlive(ctx, leaseResp.ID)
 	go func() {
 		for kaResp := range ch {
-			s.L.Debug(kaResp.String())
+			s.L.Debug("续约", logger.String("resp", kaResp.String()))
 		}
 	}()
 	return err
@@ -90,17 +85,26 @@ func (s *Server) register() error {
 
 func (s *Server) Close() error {
 	// 停止续约
-	if s.kaCancel != nil {
-		s.kaCancel()
-	}
+	s.cancel()
 
-	// 关闭etcd客户端
-	if s.client != nil {
-		err := s.client.Close()
+	// 删除key
+	if s.em != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		err := s.em.DeleteEndpoint(ctx, s.key)
 		if err != nil {
 			return err
 		}
 	}
+
+	// 关闭etcd客户端
+	if s.Client != nil {
+		err := s.Client.Close()
+		if err != nil {
+			return err
+		}
+	}
+
 	// grpc优雅停机
 	s.GracefulStop()
 	return nil
