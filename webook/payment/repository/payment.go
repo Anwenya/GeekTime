@@ -11,7 +11,7 @@ type paymentRepository struct {
 	dao dao.PaymentDAO
 }
 
-func newPaymentRepository(dao dao.PaymentDAO) PaymentRepository {
+func NewPaymentRepository(dao dao.PaymentDAO) PaymentRepository {
 	return &paymentRepository{dao: dao}
 }
 
