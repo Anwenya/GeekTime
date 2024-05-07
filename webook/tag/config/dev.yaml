@@ -1,0 +1,28 @@
+db:
+  mysql:
+    # url: "root:root@tcp(webook-mysql-service:3308)/webook"
+    url: "root:root@tcp(192.168.2.130:13306)/webook"
+    # migrationUrl: "mysql://root:root@tcp(webook-mysql-service:3308)/webook"
+    migrationUrl: "mysql://root:root@tcp(192.168.2.130:13306)/webook"
+    migrationSourceUrl: "file://db/migration"
+
+etcd:
+  endpoints:
+    - "192.168.2.130:12379"
+
+redis:
+  address: "192.168.2.130:6379"
+
+kafka:
+  addresses:
+    - "192.168.2.130"
+
+grpc:
+  server:
+    port: 8099
+    name: "tag"
+    ttl: 60
+
+es:
+  urls: "https://localhost:9200"
+  sniff: false
